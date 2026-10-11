@@ -1,6 +1,6 @@
 # Roadmap — cautem-runtime
 
-Status: **v0.1.6** (stable numbered release) · Depends on core / driver `v0.1.6`; slogx `v0.1.2`
+Status: **v0.1.7** (stable numbered release) · Depends on core `v0.1.6` / driver `v0.1.7`; slogx `v0.1.3`
 
 ## This module
 

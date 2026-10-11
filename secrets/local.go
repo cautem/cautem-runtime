@@ -41,6 +41,9 @@ func OpenLocal(dir string) (*LocalEncrypted, error) {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, err
 	}
+	if err := os.Chmod(dir, 0o700); err != nil {
+		return nil, fmt.Errorf("secrets: secure data directory: %w", err)
+	}
 	var existing diskBlob
 	if raw, err := os.ReadFile(filepath.Join(dir, FileStore)); err == nil {
 		if err := json.Unmarshal(raw, &existing); err != nil {
@@ -143,10 +146,7 @@ func loadOrCreateKEK(dir string, getenv func(string) string) ([]byte, error) {
 		return ParseEnvKEK(v)
 	}
 	path := filepath.Join(dir, FileKEK)
-	if b, err := os.ReadFile(path); err == nil {
-		if len(b) != kekBytes {
-			return nil, fmt.Errorf("secrets: invalid %s length", FileKEK)
-		}
+	if b, err := readExistingKEK(path); err == nil {
 		return b, nil
 	} else if !os.IsNotExist(err) {
 		return nil, err
@@ -176,6 +176,55 @@ func loadOrCreateKEK(dir string, getenv func(string) string) ([]byte, error) {
 	return b, nil
 }
 
+// readExistingKEK opens and validates the existing key without accepting a
+// symlink or a non-regular file. Chmod is applied to the opened file so a path
+// replacement cannot redirect the permission change to another file.
+func readExistingKEK(path string) ([]byte, error) {
+	before, err := os.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+	if before.Mode()&os.ModeSymlink != 0 {
+		return nil, fmt.Errorf("secrets: %s must not be a symlink", FileKEK)
+	}
+	if !before.Mode().IsRegular() {
+		return nil, fmt.Errorf("secrets: %s must be a regular file", FileKEK)
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	opened, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	current, err := os.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+	if current.Mode()&os.ModeSymlink != 0 || !os.SameFile(before, opened) || !os.SameFile(opened, current) {
+		return nil, fmt.Errorf("secrets: %s changed while opening", FileKEK)
+	}
+	if !opened.Mode().IsRegular() {
+		return nil, fmt.Errorf("secrets: %s must be a regular file", FileKEK)
+	}
+	if err := f.Chmod(0o600); err != nil {
+		return nil, fmt.Errorf("secrets: secure %s: %w", FileKEK, err)
+	}
+
+	b, err := io.ReadAll(f)
+	if err != nil {
+		return nil, err
+	}
+	if len(b) != kekBytes {
+		return nil, fmt.Errorf("secrets: invalid %s length", FileKEK)
+	}
+	return b, nil
+}
+
 func (s *LocalEncrypted) loadLocked() error {
 	path := filepath.Join(s.dir, FileStore)
 	raw, err := os.ReadFile(path)
@@ -199,44 +248,71 @@ func (s *LocalEncrypted) loadLocked() error {
 }
 
 func (s *LocalEncrypted) flushLocked() error {
+	_, err := s.flushDataLocked(s.data)
+	return err
+}
+
+// flushDataLocked reports whether the rename committed the new store. A
+// directory-sync error after rename is returned to the caller, but the new
+// file is already visible and must be reflected in the in-memory cache.
+func (s *LocalEncrypted) flushDataLocked(data map[string]string) (bool, error) {
 	blob := diskBlob{Version: 2, Salt: s.salt, Entries: map[string]string{}}
-	for k, v := range s.data {
+	for k, v := range data {
 		enc, err := s.encrypt(v)
 		if err != nil {
-			return err
+			return false, err
 		}
 		blob.Entries[k] = enc
 	}
 	raw, err := json.MarshalIndent(blob, "", "  ")
 	if err != nil {
-		return err
+		return false, err
 	}
 	path := filepath.Join(s.dir, FileStore)
 	f, err := os.CreateTemp(s.dir, ".secrets-*.tmp")
 	if err != nil {
-		return err
+		return false, err
 	}
 	tmp := f.Name()
 	defer os.Remove(tmp)
 	if err := f.Chmod(0o600); err != nil {
 		f.Close()
-		return err
+		return false, err
 	}
 	if _, err := f.Write(raw); err != nil {
 		f.Close()
-		return err
+		return false, err
 	}
 	if err := f.Sync(); err != nil {
 		f.Close()
-		return err
+		return false, err
 	}
 	if err := f.Close(); err != nil {
-		return err
+		return false, err
 	}
 	if err := os.Rename(tmp, path); err != nil {
-		return err
+		return false, err
 	}
-	return syncDirectory(s.dir)
+	if err := syncDirectory(s.dir); err != nil {
+		return true, err
+	}
+	return true, nil
+}
+
+func (s *LocalEncrypted) commitLocked(next map[string]string) error {
+	committed, err := s.flushDataLocked(next)
+	if committed {
+		s.data = next
+	}
+	return err
+}
+
+func cloneSecrets(data map[string]string) map[string]string {
+	clone := make(map[string]string, len(data))
+	for k, v := range data {
+		clone[k] = v
+	}
+	return clone
 }
 
 func (s *LocalEncrypted) encrypt(plain string) (string, error) {
@@ -290,28 +366,31 @@ func (s *LocalEncrypted) Put(_ context.Context, key, value string) error {
 	if value == "" {
 		return fmt.Errorf("secrets: empty value for %q", key)
 	}
-	s.data[key] = value
-	return s.flushLocked()
+	next := cloneSecrets(s.data)
+	next[key] = value
+	return s.commitLocked(next)
 }
 
 // Delete removes a key.
 func (s *LocalEncrypted) Delete(_ context.Context, key string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	delete(s.data, key)
-	return s.flushLocked()
+	next := cloneSecrets(s.data)
+	delete(next, key)
+	return s.commitLocked(next)
 }
 
 // DeletePrefix removes all keys with the given prefix.
 func (s *LocalEncrypted) DeletePrefix(_ context.Context, prefix string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for k := range s.data {
+	next := cloneSecrets(s.data)
+	for k := range next {
 		if strings.HasPrefix(k, prefix) {
-			delete(s.data, k)
+			delete(next, k)
 		}
 	}
-	return s.flushLocked()
+	return s.commitLocked(next)
 }
 
 // ProviderKey builds the canonical store key for a provider credential.
@@ -324,16 +403,20 @@ func (s *LocalEncrypted) PutProviderCredentials(_ context.Context, providerName 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	changed := false
+	var next map[string]string
 	for k, v := range creds {
 		k = strings.TrimSpace(k)
 		if k == "" || strings.TrimSpace(v) == "" {
 			continue
 		}
-		s.data[ProviderKey(providerName, k)] = v
+		if next == nil {
+			next = cloneSecrets(s.data)
+		}
+		next[ProviderKey(providerName, k)] = v
 		changed = true
 	}
 	if changed {
-		return s.flushLocked()
+		return s.commitLocked(next)
 	}
 	return nil
 }

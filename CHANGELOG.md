@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [v0.1.7] - 2026-10-11
+
+### Security
+
+- Keep the in-memory secret cache aligned with atomic file updates when a write fails.
+- Restrict the secrets directory and file-backed KEK to owner-only permissions; reject KEK symlinks and non-regular files.
+
+### Changed
+
+- Refresh the OpenShell SDK, cautem-driver, crypto, and system dependencies.
+- Read the OpenShell supervisor heartbeat interval from its duration-based field.
+
 ## [v0.1.6] - 2026-10-11
 
 ### Changed
