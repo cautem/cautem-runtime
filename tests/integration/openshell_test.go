@@ -18,7 +18,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 type reconnectService struct {
@@ -34,7 +33,7 @@ func (s *reconnectService) ConnectSupervisor(stream grpc.BidiStreamingServer[ope
 	if err != nil || hello.GetHello() == nil || hello.GetHello().GetSandboxId() != "sandbox-1" || hello.GetHello().GetInstanceId() == "" {
 		return status.Error(codes.InvalidArgument, "invalid supervisor hello")
 	}
-	if err := stream.Send(&openshellv1.GatewayMessage{Payload: &openshellv1.GatewayMessage_SessionAccepted{SessionAccepted: &openshellv1.SessionAccepted{SessionId: "session", HeartbeatInterval: durationpb.New(time.Second)}}}); err != nil {
+	if err := stream.Send(&openshellv1.GatewayMessage{Payload: &openshellv1.GatewayMessage_SessionAccepted{SessionAccepted: &openshellv1.SessionAccepted{SessionId: "session", HeartbeatIntervalSecs: 1}}}); err != nil {
 		return err
 	}
 	s.connections.Add(1)
@@ -111,7 +110,7 @@ func (s *lifecycleService) ConnectSupervisor(stream grpc.BidiStreamingServer[ope
 	s.activeID = id
 	s.mu.Unlock()
 	s.connectedID <- id
-	if err := stream.Send(&openshellv1.GatewayMessage{Payload: &openshellv1.GatewayMessage_SessionAccepted{SessionAccepted: &openshellv1.SessionAccepted{SessionId: "session", HeartbeatInterval: durationpb.New(30 * time.Second)}}}); err != nil {
+	if err := stream.Send(&openshellv1.GatewayMessage{Payload: &openshellv1.GatewayMessage_SessionAccepted{SessionAccepted: &openshellv1.SessionAccepted{SessionId: "session", HeartbeatIntervalSecs: 30}}}); err != nil {
 		return err
 	}
 	<-stream.Context().Done()

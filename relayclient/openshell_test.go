@@ -15,7 +15,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
-	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 type refreshSessionServer struct {
@@ -31,7 +30,7 @@ func (s *refreshSessionServer) ConnectSupervisor(stream openshellv1.OpenShell_Co
 	if message.GetHello() == nil {
 		return errMissingSupervisorHello
 	}
-	if err := stream.Send(&openshellv1.GatewayMessage{Payload: &openshellv1.GatewayMessage_SessionAccepted{SessionAccepted: &openshellv1.SessionAccepted{HeartbeatInterval: durationpb.New(time.Minute)}}}); err != nil {
+	if err := stream.Send(&openshellv1.GatewayMessage{Payload: &openshellv1.GatewayMessage_SessionAccepted{SessionAccepted: &openshellv1.SessionAccepted{HeartbeatIntervalSecs: 60}}}); err != nil {
 		return err
 	}
 	<-stream.Context().Done()

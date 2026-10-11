@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [v0.1.8] - 2026-10-11
+
+### Compatibility
+
+- Pin the OpenShell SDK to the gateway-compatible API schema while retaining the v0.1.7 secret-store and KEK hardening fixes.
+
 ## [v0.1.7] - 2026-10-11
 
 ### Security
