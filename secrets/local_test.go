@@ -46,6 +46,92 @@ func TestLocalEncryptedRoundTrip(t *testing.T) {
 	}
 }
 
+func TestFailedMutationsKeepMemoryAndDiskUnchanged(t *testing.T) {
+	t.Setenv(EnvKEK, "")
+	ctx := context.Background()
+	mutations := []struct {
+		name        string
+		apply       func(*LocalEncrypted) error
+		newKey      string
+		wantMissing bool
+	}{
+		{
+			name: "put",
+			apply: func(s *LocalEncrypted) error {
+				return s.Put(ctx, "existing", "replacement")
+			},
+		},
+		{
+			name: "delete",
+			apply: func(s *LocalEncrypted) error {
+				return s.Delete(ctx, "existing")
+			},
+		},
+		{
+			name: "delete-prefix",
+			apply: func(s *LocalEncrypted) error {
+				return s.DeletePrefix(ctx, "exist")
+			},
+		},
+		{
+			name: "put-provider-credentials",
+			apply: func(s *LocalEncrypted) error {
+				return s.PutProviderCredentials(ctx, "test", map[string]string{"TOKEN": "new-token"})
+			},
+			newKey:      ProviderKey("test", "TOKEN"),
+			wantMissing: true,
+		},
+	}
+
+	for _, tc := range mutations {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			s, err := OpenLocal(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := s.Put(ctx, "existing", "original"); err != nil {
+				t.Fatal(err)
+			}
+
+			storePath := filepath.Join(dir, FileStore)
+			backupPath := filepath.Join(dir, "secrets.enc.json.backup")
+			if err := os.Rename(storePath, backupPath); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Mkdir(storePath, 0o700); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := tc.apply(s); err == nil {
+				t.Fatal("mutation succeeded while the store path was a directory")
+			}
+			if got, err := s.Get(ctx, "existing"); err != nil || got != "original" {
+				t.Fatalf("in-memory value after failed mutation = %q, %v; want original", got, err)
+			}
+			if tc.wantMissing {
+				if _, err := s.Get(ctx, tc.newKey); err == nil {
+					t.Fatalf("failed mutation left %q in memory", tc.newKey)
+				}
+			}
+
+			if err := os.RemoveAll(storePath); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Rename(backupPath, storePath); err != nil {
+				t.Fatal(err)
+			}
+			reopened, err := OpenLocal(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got, err := reopened.Get(ctx, "existing"); err != nil || got != "original" {
+				t.Fatalf("persisted value after failed mutation = %q, %v; want original", got, err)
+			}
+		})
+	}
+}
+
 func TestLegacyStoreMigratesAtomicallyToPasswordKDF(t *testing.T) {
 	dir := t.TempDir()
 	password := "legacy-short"

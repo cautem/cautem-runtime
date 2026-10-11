@@ -5,6 +5,8 @@ import (
 	"encoding/base64"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/cautem/cautem-runtime/secrets"
@@ -130,5 +132,52 @@ func TestFileKEKSurvivesSameVolume(t *testing.T) {
 	}
 	if secrets.Inspect(dir, func(string) string { return "" }).Source != secrets.SourceFile {
 		t.Fatal("expected file source")
+	}
+}
+
+func TestOpenLocalRejectsSymlinkKEK(t *testing.T) {
+	t.Setenv(secrets.EnvKEK, "")
+	dir := t.TempDir()
+	target := filepath.Join(dir, "key-material")
+	if err := os.WriteFile(target, make([]byte, 32), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, filepath.Join(dir, secrets.FileKEK)); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	if _, err := secrets.OpenLocal(dir); err == nil || !strings.Contains(err.Error(), "symlink") {
+		t.Fatalf("OpenLocal error = %v, want symlink rejection", err)
+	}
+}
+
+func TestOpenLocalTightensKEKAndDirectoryPermissions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows filesystem permissions do not expose POSIX mode bits")
+	}
+	t.Setenv(secrets.EnvKEK, "")
+	dir := filepath.Join(t.TempDir(), "secrets")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	keyPath := filepath.Join(dir, secrets.FileKEK)
+	if err := os.WriteFile(keyPath, make([]byte, 32), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(keyPath, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := secrets.OpenLocal(dir); err != nil {
+		t.Fatal(err)
+	}
+	for path, want := range map[string]os.FileMode{dir: 0o700, keyPath: 0o600} {
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := info.Mode().Perm(); got != want {
+			t.Errorf("%s mode = %04o, want %04o", path, got, want)
+		}
 	}
 }
