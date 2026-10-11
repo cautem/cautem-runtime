@@ -357,7 +357,7 @@ func openShellSession(ctx context.Context, client openshellv1.OpenShellClient, c
 	if cfg.OnConnected != nil {
 		cfg.OnConnected()
 	}
-	interval := accepted.GetSessionAccepted().GetHeartbeatInterval().AsDuration()
+	interval := time.Duration(accepted.GetSessionAccepted().GetHeartbeatIntervalSecs()) * time.Second
 	if interval <= 0 {
 		interval = 15 * time.Second
 	}

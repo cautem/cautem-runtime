@@ -5,7 +5,7 @@ go 1.27.0
 toolchain go1.27.2
 
 require (
-	github.com/NVIDIA/OpenShell/sdk/go v0.0.0-20261010011203-eeba0e7954c0
+	github.com/NVIDIA/OpenShell/sdk/go v0.0.0-20260909233434-a0814443f19c
 	github.com/cautem/cautem-core v0.1.6
 	github.com/cautem/cautem-driver v0.1.7
 	github.com/cautem/slogx v0.1.3
