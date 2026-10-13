@@ -13,6 +13,7 @@ import (
 
 	"github.com/cautem/cautem-core/policy"
 	"github.com/cautem/cautem-runtime/internal/harden"
+	"github.com/cautem/cautem-runtime/supervisorcontrol"
 )
 
 func Run(args []string) error {
@@ -85,12 +86,23 @@ func Run(args []string) error {
 	if mode == "" {
 		mode = harden.ModeFromPolicy(doc)
 	}
+	privateCredentialDir := strings.TrimSpace(os.Getenv(supervisorcontrol.EnvPrivateDir))
+	if strings.TrimSpace(os.Getenv(supervisorcontrol.EnvEndpoint)) != "" {
+		client, err := supervisorcontrol.NewClientFromEnvironment()
+		if err != nil {
+			return fmt.Errorf("cautem-init: supervisor control credentials: %w", err)
+		}
+		if privateCredentialDir == "" {
+			privateCredentialDir = client.PrivateCredentialDir()
+		}
+	}
 
 	res, err := harden.Apply(context.Background(), harden.Options{
-		Doc:    doc,
-		Mode:   mode,
-		Log:    os.Stderr,
-		NoDrop: noDrop,
+		Doc:                  doc,
+		Mode:                 mode,
+		Log:                  os.Stderr,
+		NoDrop:               noDrop,
+		PrivateCredentialDir: privateCredentialDir,
 	})
 	if err != nil {
 		return err

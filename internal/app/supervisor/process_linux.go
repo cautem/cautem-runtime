@@ -21,6 +21,15 @@ func enableChildSubreaper() error {
 	return nil
 }
 
+func protectSupervisorMemory() error {
+	const prSetDumpable = 4
+	_, _, errno := syscall.Syscall6(syscall.SYS_PRCTL, prSetDumpable, 0, 0, 0, 0, 0)
+	if errno != 0 {
+		return errno
+	}
+	return nil
+}
+
 func signalWorkloadGroup(pid int, signal os.Signal) error {
 	sig, ok := signal.(syscall.Signal)
 	if !ok {
@@ -35,7 +44,8 @@ func processGroupExists(pid int) bool {
 }
 
 // Reap adopted descendants without racing exec.Cmd.Wait for the direct child.
-func reapAdoptedChildren(mainPID int) {
+// onReaped receives each child that wait4 successfully reaped.
+func reapAdoptedChildren(mainPID int, onReaped func(int)) {
 	entries, err := os.ReadDir("/proc")
 	if err != nil {
 		return
@@ -60,6 +70,9 @@ func reapAdoptedChildren(mainPID int) {
 			continue
 		}
 		var status syscall.WaitStatus
-		_, _ = syscall.Wait4(pid, &status, syscall.WNOHANG, nil)
+		reapedPID, err := syscall.Wait4(pid, &status, syscall.WNOHANG, nil)
+		if err == nil && reapedPID > 0 && onReaped != nil {
+			onReaped(reapedPID)
+		}
 	}
 }

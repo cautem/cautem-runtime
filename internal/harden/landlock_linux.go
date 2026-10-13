@@ -26,6 +26,11 @@ func landlockABI() (int, error) {
 }
 
 func applyLandlock(doc policy.Document) error {
+	abi, _ := landlockABI()
+	return applyLandlockWithABI(doc, abi)
+}
+
+func applyLandlockWithABI(doc policy.Document, kernelABI int) error {
 	workdir, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("resolve active workspace for filesystem policy: %w", err)
@@ -53,9 +58,28 @@ func applyLandlock(doc policy.Document) error {
 	reads = unique(reads)
 	writes = unique(writes)
 
-	cfg := ll.V5.BestEffort()
-	if doc.HardenMode() == "required" {
-		cfg = ll.V5
+	profileABI := landlockProfileMaxABI(kernelABI)
+	var cfg ll.Config
+	if profileABI >= 7 {
+		cfg = ll.V7.EnableLoggingForSubprocesses().BestEffort()
+		if doc.HardenMode() == "required" {
+			cfg = ll.V7.EnableLoggingForSubprocesses()
+		}
+	} else if doc.HardenMode() == "required" {
+		switch profileABI {
+		case 5:
+			cfg = ll.V5
+		case 4:
+			cfg = ll.V4
+		case 3:
+			cfg = ll.V3
+		case 2:
+			cfg = ll.V2
+		default:
+			cfg = ll.V1
+		}
+	} else {
+		cfg = ll.V5.BestEffort()
 	}
 	rules := make([]ll.PathOpt, 0, 4) //nolint:staticcheck // PathOpt kept until landlock major drop of alias
 	roDirs, roFiles := existingByType(reads)

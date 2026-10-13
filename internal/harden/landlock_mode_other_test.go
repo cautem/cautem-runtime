@@ -61,4 +61,16 @@ func TestLandlockCompatibilityModesWhenUnavailable(t *testing.T) {
 	if !strings.Contains(unavailableRequiredLog.String(), "mode=required → fail") {
 		t.Fatalf("required log = %q, want fail-closed warning", unavailableRequiredLog.String())
 	}
+
+	privateDir := t.TempDir()
+	var privateDirLog bytes.Buffer
+	result, err = Apply(context.Background(), Options{
+		Doc:                  policy.Document{FilesystemPolicy: &policy.FilesystemPolicy{}},
+		PrivateCredentialDir: privateDir,
+		Log:                  &privateDirLog,
+		NoDrop:               true,
+	})
+	if err == nil || result.LandlockError == "" || !strings.Contains(err.Error(), "landlock required") {
+		t.Fatalf("private credential isolation = result %+v, error %v; want required Landlock-unavailable error", result, err)
+	}
 }

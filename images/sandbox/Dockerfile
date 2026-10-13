@@ -5,10 +5,12 @@
 #   docker build --target cli -t cautem-sandbox:local .
 #   docker build --target gui -t cautem-sandbox:gui .
 #   docker build --target gpu -t cautem-sandbox:gpu .
+#   docker build --target gui-gpu -t cautem-sandbox:gui-gpu .
 #
 # cli  — OpenShell-like base: languages, agents, networking, developer tools
 # gui  — Debian bookworm: Chromium + Xvfb/openbox/noVNC
 # gpu  — Debian bookworm + CUDA *userland* packages; host injects libcuda via CDI
+# gui-gpu — GUI image with GL/EGL/Vulkan userspace and NVIDIA render capabilities
 
 ARG DEBIAN_BASE=debian:bookworm@sha256:2c037a04925515fdd6ea85ea14a682d0e79931f5e9f5d07b6dbfc6ba12f9e858
 
@@ -67,7 +69,9 @@ RUN npm install -g \
 COPY --from=ghcr.io/astral-sh/uv:0.10.8@sha256:88234bc9e09c2b2f6d176a3daf411419eb0370d450a08129257410de9cfafd2a /uv /usr/local/bin/uv
 
 COPY cautem-init /usr/local/bin/cautem-init
-RUN chmod 0755 /usr/local/bin/cautem-init \
+COPY cautem-supervisor /usr/local/bin/cautem-supervisor
+COPY cautem-sshd /usr/local/bin/cautem-sshd
+RUN chmod 0755 /usr/local/bin/cautem-init /usr/local/bin/cautem-supervisor /usr/local/bin/cautem-sshd \
     && mkdir -p /cautem/data/home/.local/bin /cautem/data/bin /workspace \
     && ln -sf /usr/bin/python3 /usr/local/bin/python || true
 RUN groupadd --system sandbox \
@@ -95,7 +99,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     && rm -rf /var/lib/apt/lists/*
 COPY cautem-init /usr/local/bin/cautem-init
-RUN chmod 0755 /usr/local/bin/cautem-init \
+COPY cautem-supervisor /usr/local/bin/cautem-supervisor
+COPY cautem-sshd /usr/local/bin/cautem-sshd
+RUN chmod 0755 /usr/local/bin/cautem-init /usr/local/bin/cautem-supervisor /usr/local/bin/cautem-sshd \
     && groupadd --system sandbox \
     && useradd --system --gid sandbox --home-dir /sandbox --create-home --shell /bin/sh sandbox \
     && mkdir -p /cautem/data /workspace \
@@ -131,10 +137,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && chromium --version
 
 COPY cautem-init /usr/local/bin/cautem-init
+COPY cautem-supervisor /usr/local/bin/cautem-supervisor
+COPY cautem-sshd /usr/local/bin/cautem-sshd
 COPY cautem-gui-boot /usr/local/bin/cautem-gui-boot
 COPY cautem-display-start /usr/local/bin/cautem-display-start
 COPY chromium-cautem /usr/local/bin/chromium-cautem
-RUN chmod 0755 /usr/local/bin/cautem-init /usr/local/bin/cautem-gui-boot \
+RUN chmod 0755 /usr/local/bin/cautem-init /usr/local/bin/cautem-supervisor /usr/local/bin/cautem-sshd /usr/local/bin/cautem-gui-boot \
         /usr/local/bin/cautem-display-start /usr/local/bin/chromium-cautem \
     && ln -sf /usr/local/bin/chromium-cautem /usr/local/bin/google-chrome \
     && ln -sf /usr/local/bin/chromium-cautem /usr/local/bin/chrome \
@@ -155,3 +163,27 @@ ENV CAUTEM_POLICY=/cautem/policy.yaml \
 USER sandbox
 ENTRYPOINT ["/usr/local/bin/cautem-init"]
 CMD ["--", "/usr/local/bin/cautem-gui-boot"]
+
+# Experimental GUI + GPU image. The host must provide a compatible NVIDIA
+# Container Toolkit/CDI setup. Enabling driver capabilities is not proof that
+# Chromium or another application uses hardware rendering; verify on GPU hosts.
+FROM gui AS gui-gpu
+USER root
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libegl1 \
+    libgl1 \
+    libgles2 \
+    libvulkan1 \
+    mesa-utils \
+    vulkan-tools \
+    && rm -rf /var/lib/apt/lists/*
+COPY chromium-cautem-gpu /usr/local/bin/chromium-cautem-gpu
+RUN chmod 0755 /usr/local/bin/chromium-cautem-gpu \
+    && ln -sf /usr/local/bin/chromium-cautem-gpu /usr/local/bin/google-chrome \
+    && ln -sf /usr/local/bin/chromium-cautem-gpu /usr/local/bin/chrome
+ENV CHROME_BIN=/usr/local/bin/chromium-cautem-gpu \
+    BROWSER=/usr/local/bin/chromium-cautem-gpu \
+    NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=graphics,display,compute,utility
+USER sandbox
