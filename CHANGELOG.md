@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [v0.2.1] - 2026-10-13
+
+### Fixed
+
+- Include the active supervisor instance ID in process activity events so the Gateway accepts and records them.
+
 ## [v0.2.0] - 2026-10-13
 
 ### Added
