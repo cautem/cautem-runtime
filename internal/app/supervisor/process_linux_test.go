@@ -163,9 +163,10 @@ func TestRunCollectsCoalescedAdoptedChildExits(t *testing.T) {
 		case supervisorcontrol.OperationBegin:
 			return supervisorcontrol.Response{InstanceID: "test-instance"}
 		case supervisorcontrol.OperationProcess:
-			if request.Process != nil {
-				receipts <- processEventReceipt{event: *request.Process, receivedAt: time.Now()}
+			if request.Process == nil || request.Process.InstanceID != "test-instance" {
+				return supervisorcontrol.Response{Error: "process event has no current instance id"}
 			}
+			receipts <- processEventReceipt{event: *request.Process, receivedAt: time.Now()}
 		case supervisorcontrol.OperationReport:
 			if request.ExitCode != 17 {
 				return supervisorcontrol.Response{Error: "incorrect workload exit code"}

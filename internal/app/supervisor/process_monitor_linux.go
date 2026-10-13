@@ -189,7 +189,7 @@ func (m *linuxProcessEventMonitor) emit(activity string, pid, parentPID int, exe
 		return
 	}
 	event := supervisorcontrol.ProcessEvent{
-		Activity: activity, PID: pid, ParentPID: parentPID,
+		InstanceID: m.instance, Activity: activity, PID: pid, ParentPID: parentPID,
 		Executable: processExecutable(0, executable), Timestamp: time.Now().UTC().UnixMilli(),
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
