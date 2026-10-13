@@ -77,7 +77,7 @@ jobs:
         with:
           repository: cautem/cautem-driver
           path: cautem-driver
-          ref: 89a88e2fe3782144e6f41991e1b7aea56c1d516c
+          ref: b262a04d463be6d81ec01ea99a2016ec0047cd8f
       - name: Checkout cautem-proxy
         uses: actions/checkout@v4
         with:
