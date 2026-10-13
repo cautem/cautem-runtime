@@ -8,7 +8,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"path/filepath"
+	"path"
 	"strings"
 	"syscall"
 	"time"
@@ -111,10 +111,10 @@ func parseArgs(args []string) (runOptions, error) {
 			return runOptions{}, err
 		}
 	}
-	if strings.TrimSpace(options.socket) == "" || !filepath.IsAbs(options.socket) || filepath.Clean(options.socket) != options.socket {
+	if strings.TrimSpace(options.socket) == "" || !path.IsAbs(options.socket) || path.Clean(options.socket) != options.socket {
 		return runOptions{}, fmt.Errorf("sshd socket path must be clean and absolute")
 	}
-	if strings.TrimSpace(options.server.InitPath) == "" || !filepath.IsAbs(options.server.InitPath) || filepath.Clean(options.server.InitPath) != options.server.InitPath {
+	if strings.TrimSpace(options.server.InitPath) == "" || !path.IsAbs(options.server.InitPath) || path.Clean(options.server.InitPath) != options.server.InitPath {
 		return runOptions{}, fmt.Errorf("init path must be clean and absolute")
 	}
 	return options, nil
