@@ -9,12 +9,30 @@ on:
     paths:
       - "images/**"
       - "cmd/cautem-init/**"
+      - "cmd/cautem-supervisor/**"
+      - "cmd/cautem-sshd/**"
+      - "internal/app/supervisor/**"
+      - "internal/app/sshd/**"
+      - "sshserver/**"
+      - "supervisorcontrol/**"
+      - "relaytarget/**"
+      - "go.mod"
+      - "go.sum"
       - "harden/**"
       - ".github/workflows/images-sandbox.yml"
   pull_request:
     paths:
       - "images/**"
       - "cmd/cautem-init/**"
+      - "cmd/cautem-supervisor/**"
+      - "cmd/cautem-sshd/**"
+      - "internal/app/supervisor/**"
+      - "internal/app/sshd/**"
+      - "sshserver/**"
+      - "supervisorcontrol/**"
+      - "relaytarget/**"
+      - "go.mod"
+      - "go.sum"
       - "harden/**"
       - ".github/workflows/images-sandbox.yml"
   workflow_dispatch:
@@ -41,6 +59,8 @@ jobs:
             name: gui
           - target: gpu
             name: gpu
+          - target: gui-gpu
+            name: gui-gpu
     steps:
       - name: Checkout cautem-runtime
         uses: actions/checkout@v4
@@ -51,13 +71,13 @@ jobs:
         with:
           repository: cautem/cautem-core
           path: cautem-core
-          ref: 91a83675f9cf80887fdc652b6031ee863bbd7f55
+          ref: 3e8578194f94048a5c2619d2e1411eac546de985
       - name: Checkout cautem-driver
         uses: actions/checkout@v4
         with:
           repository: cautem/cautem-driver
           path: cautem-driver
-          ref: a19243085df51ab403f7de3df5d10892d91e22f3
+          ref: 89a88e2fe3782144e6f41991e1b7aea56c1d516c
       - name: Checkout cautem-proxy
         uses: actions/checkout@v4
         with:
@@ -107,10 +127,12 @@ jobs:
             cautem-*/go.sum
             slogx/go.sum
       - uses: docker/setup-buildx-action@v3
-      - name: Build cautem-init into image context
+      - name: Build runtime helpers into image context
         working-directory: cautem-runtime
         run: |
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o images/sandbox/cautem-init ./cmd/cautem-init
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o images/sandbox/cautem-supervisor ./cmd/cautem-supervisor
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o images/sandbox/cautem-sshd ./cmd/cautem-sshd
       - name: Login GHCR
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3

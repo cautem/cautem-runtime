@@ -65,7 +65,10 @@ func TestReconcileDataOwnershipWalksDedicatedDataTree(t *testing.T) {
 	if err := reconcileDataOwnershipAt(root, policy.Document{}); err != nil {
 		t.Fatalf("reconcile dedicated data tree: %v", err)
 	}
-	uid, gid := os.Getuid(), os.Getgid()
+	uid, gid, err := targetFilesystemIDs(policy.Document{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, path := range []string{root, nested, file} {
 		info, err := os.Stat(path)
 		if err != nil {

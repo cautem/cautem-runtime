@@ -37,14 +37,14 @@ jobs:
         with:
           repository: cautem/cautem-core
           path: cautem-core
-          ref: 91a83675f9cf80887fdc652b6031ee863bbd7f55
+          ref: 3e8578194f94048a5c2619d2e1411eac546de985
 
       - name: Checkout cautem-driver
         uses: actions/checkout@v4
         with:
           repository: cautem/cautem-driver
           path: cautem-driver
-          ref: a19243085df51ab403f7de3df5d10892d91e22f3
+          ref: 89a88e2fe3782144e6f41991e1b7aea56c1d516c
 
       - name: Checkout cautem-proxy
         uses: actions/checkout@v4
@@ -123,14 +123,14 @@ jobs:
         with:
           repository: cautem/cautem-core
           path: cautem-core
-          ref: 91a83675f9cf80887fdc652b6031ee863bbd7f55
+          ref: 3e8578194f94048a5c2619d2e1411eac546de985
 
       - name: Checkout cautem-driver
         uses: actions/checkout@v4
         with:
           repository: cautem/cautem-driver
           path: cautem-driver
-          ref: a19243085df51ab403f7de3df5d10892d91e22f3
+          ref: 89a88e2fe3782144e6f41991e1b7aea56c1d516c
 
       - name: Checkout cautem-proxy
         uses: actions/checkout@v4
@@ -209,14 +209,14 @@ jobs:
         with:
           repository: cautem/cautem-core
           path: cautem-core
-          ref: 91a83675f9cf80887fdc652b6031ee863bbd7f55
+          ref: 3e8578194f94048a5c2619d2e1411eac546de985
 
       - name: Checkout cautem-driver
         uses: actions/checkout@v4
         with:
           repository: cautem/cautem-driver
           path: cautem-driver
-          ref: a19243085df51ab403f7de3df5d10892d91e22f3
+          ref: 89a88e2fe3782144e6f41991e1b7aea56c1d516c
 
       - name: Checkout cautem-proxy
         uses: actions/checkout@v4
@@ -293,14 +293,14 @@ jobs:
         with:
           repository: cautem/cautem-core
           path: cautem-core
-          ref: 91a83675f9cf80887fdc652b6031ee863bbd7f55
+          ref: 3e8578194f94048a5c2619d2e1411eac546de985
 
       - name: Checkout cautem-driver
         uses: actions/checkout@v4
         with:
           repository: cautem/cautem-driver
           path: cautem-driver
-          ref: a19243085df51ab403f7de3df5d10892d91e22f3
+          ref: 89a88e2fe3782144e6f41991e1b7aea56c1d516c
 
       - name: Checkout cautem-proxy
         uses: actions/checkout@v4

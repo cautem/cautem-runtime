@@ -1,0 +1,7 @@
+#!/bin/sh
+# Experimental Chromium launcher: preserve the GUI container flags but allow
+# the host-injected NVIDIA GL/EGL/Vulkan driver to select hardware rendering.
+exec /usr/bin/chromium \
+  --no-sandbox \
+  --disable-dev-shm-usage \
+  "$@"

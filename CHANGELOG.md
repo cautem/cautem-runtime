@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [v0.2.0] - 2026-10-13
+
+### Added
+
+- Add mutually authenticated workload relay bridges, supervisor control channels, and lifecycle event forwarding.
+- Add the experimental `gui-gpu` sandbox image target with Chromium graphics libraries.
+
+### Changed
+
+- Harden supervisor process monitoring and sandbox startup across supported platforms.
+
+### Limitations
+
+- Hardware GPU rendering is experimental and has not been verified on an NVIDIA Linux host.
+
 ## [v0.1.8] - 2026-10-11
 
 ### Compatibility

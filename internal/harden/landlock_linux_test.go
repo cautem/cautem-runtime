@@ -30,10 +30,62 @@ func TestLandlockDefaultRuntimeBaseline(t *testing.T) {
 		t.Skipf("Landlock unavailable in test environment: %v", err)
 	}
 	coverageDir := t.TempDir()
-	cmd := exec.Command(os.Args[0], "-test.run=^TestLandlockDefaultRuntimeBaseline$", "-test.gocoverdir="+coverageDir)
+	cmd := exec.Command(os.Args[0], landlockChildArgs("TestLandlockDefaultRuntimeBaseline", coverageDir)...)
 	cmd.Env = landlockChildEnv(childEnv + "=1")
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("default runtime baseline child failed: %v\n%s", err, strings.TrimSpace(string(output)))
+	}
+}
+
+func TestPrivateCredentialDirectoryLandlockEnforcement(t *testing.T) {
+	const childEnv = "CAUTEM_LANDLOCK_PRIVATE_CREDENTIAL_CHILD"
+	if os.Getenv(childEnv) == "1" {
+		privateDir := os.Getenv("CAUTEM_LANDLOCK_PRIVATE_CREDENTIAL_DIR")
+		secretPath := os.Getenv("CAUTEM_LANDLOCK_PRIVATE_CREDENTIAL_FILE")
+		result, err := Apply(t.Context(), Options{
+			Doc:                  policy.Document{FilesystemPolicy: &policy.FilesystemPolicy{}},
+			Mode:                 ModeRequired,
+			PrivateCredentialDir: privateDir,
+			NoDrop:               true,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !result.LandlockApplied {
+			t.Fatalf("private credential isolation result = %+v, want Landlock applied", result)
+		}
+		if _, err := os.ReadFile(secretPath); err == nil {
+			t.Fatal("workload process read a supervisor private credential")
+		}
+		if output, err := exec.Command("/bin/true").CombinedOutput(); err != nil {
+			t.Fatalf("runtime baseline could not execute /bin/true: %v\n%s", err, output)
+		}
+		return
+	}
+	if _, err := landlockABI(); err != nil {
+		t.Skipf("Landlock unavailable in test environment: %v", err)
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	privateDir, err := os.MkdirTemp(home, ".cautem-private-control-")
+	if err != nil {
+		t.Skipf("create private credential directory under home: %v", err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(privateDir) })
+	secretPath := filepath.Join(privateDir, "client.key")
+	if err := os.WriteFile(secretPath, []byte("test-private-key"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(os.Args[0], "-test.run=^TestPrivateCredentialDirectoryLandlockEnforcement$")
+	cmd.Env = landlockChildEnv(
+		childEnv+"=1",
+		"CAUTEM_LANDLOCK_PRIVATE_CREDENTIAL_DIR="+privateDir,
+		"CAUTEM_LANDLOCK_PRIVATE_CREDENTIAL_FILE="+secretPath,
+	)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("private credential Landlock child failed: %v\n%s", err, output)
 	}
 }
 
@@ -70,7 +122,7 @@ func TestLandlockExplicitPolicyEnforcement(t *testing.T) {
 	if err := os.Mkdir(coverageDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(os.Args[0], "-test.run=^TestLandlockExplicitPolicyEnforcement$", "-test.gocoverdir="+coverageDir)
+	cmd := exec.Command(os.Args[0], landlockChildArgs("TestLandlockExplicitPolicyEnforcement", coverageDir)...)
 	cmd.Env = landlockChildEnv(childEnv+"=1", "CAUTEM_LANDLOCK_TEST_ALLOWED="+allowed, "CAUTEM_LANDLOCK_TEST_COVERAGE_DIR="+coverageDir)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Landlock child failed: %v\n%s", err, output)
@@ -123,7 +175,7 @@ func TestLandlockFilesystemWriteGrantsEnforcement(t *testing.T) {
 				}
 			}
 			coverageDir := filepath.Join(root, "work")
-			cmd := exec.Command(os.Args[0], "-test.run=^TestLandlockFilesystemWriteGrantsEnforcement$", "-test.gocoverdir="+coverageDir)
+			cmd := exec.Command(os.Args[0], landlockChildArgs("TestLandlockFilesystemWriteGrantsEnforcement", coverageDir)...)
 			cmd.Env = landlockChildEnv(childEnv+"=1", "CAUTEM_LANDLOCK_WRITE_TEST_MODE="+mode, "CAUTEM_LANDLOCK_WRITE_TEST_ROOT="+root)
 			if output, err := cmd.CombinedOutput(); err != nil {
 				t.Fatalf("Landlock %s child failed: %v\n%s", mode, err, output)
@@ -147,6 +199,14 @@ func landlockChildEnv(values ...string) []string {
 		}
 	}
 	return append(env, values...)
+}
+
+func landlockChildArgs(testName, coverageDir string) []string {
+	args := []string{"-test.run=^" + testName + "$"}
+	if testing.CoverMode() != "" {
+		args = append(args, "-test.gocoverdir="+coverageDir)
+	}
+	return args
 }
 
 func TestLandlockOpenShellDefaultGrantsOnlyWorkdir(t *testing.T) {

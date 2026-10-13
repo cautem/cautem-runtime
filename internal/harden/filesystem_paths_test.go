@@ -83,3 +83,77 @@ func TestFilesystemPathsUsesActiveNonDefaultWorkdir(t *testing.T) {
 		}
 	}
 }
+
+func TestPrivateCredentialDirectoryRejectsOverlappingFilesystemGrants(t *testing.T) {
+	root := t.TempDir()
+	privateDir := filepath.Join(root, "control")
+	if err := os.Mkdir(privateDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	alias := filepath.Join(root, "credential-alias")
+	if err := os.Symlink(privateDir, alias); err != nil {
+		t.Skipf("symlink creation is unavailable: %v", err)
+	}
+	tests := []struct {
+		name  string
+		grant string
+	}{
+		{name: "parent directory", grant: root},
+		{name: "credential directory", grant: privateDir},
+		{name: "nested directory", grant: filepath.Join(privateDir, "nested")},
+		{name: "symlink alias", grant: alias},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			doc := policy.Document{FilesystemPolicy: &policy.FilesystemPolicy{ReadOnly: []string{tt.grant}}}
+			if err := rejectFilesystemGrantsOverlapping(privateDir, doc); err == nil {
+				t.Fatalf("filesystem grant %q overlaps the private directory but was accepted", tt.grant)
+			}
+		})
+	}
+
+	workdir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := rejectFilesystemGrantsOverlapping(filepath.Dir(workdir), policy.Document{}); err == nil {
+		t.Fatal("implicit workdir grant overlapping the private directory was accepted")
+	}
+}
+
+func TestPrivateCredentialDirectoryForcesRequiredLandlock(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	privateDir, err := os.MkdirTemp(home, ".cautem-control-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(privateDir) })
+	opts, err := requirePrivateCredentialIsolation(Options{
+		Doc:                  policy.Document{FilesystemPolicy: &policy.FilesystemPolicy{}},
+		Mode:                 ModeBestEffort,
+		PrivateCredentialDir: privateDir,
+	})
+	if err != nil {
+		t.Fatalf("requirePrivateCredentialIsolation() error = %v", err)
+	}
+	if opts.Mode != ModeRequired {
+		t.Fatalf("mode = %q, want required", opts.Mode)
+	}
+	if opts.Doc.FilesystemPolicy != nil {
+		t.Fatalf("empty filesystem policy = %+v, want runtime baseline under required Landlock", opts.Doc.FilesystemPolicy)
+	}
+}
+
+func TestPrivateCredentialDirectoryRejectsRuntimeTemporaryGrant(t *testing.T) {
+	privateDir, err := os.MkdirTemp("/tmp", "cautem-private-control-")
+	if err != nil {
+		t.Skipf("create temporary private directory under /tmp: %v", err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(privateDir) })
+	if err := rejectFilesystemGrantsOverlapping(privateDir, policy.Document{}); err == nil {
+		t.Fatal("runtime /tmp baseline grant overlaps the private directory but was accepted")
+	}
+}

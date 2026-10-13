@@ -45,6 +45,13 @@ tasks:
         vars:
           TARGET: gpu
 
+  image:gui-gpu:
+    desc: Build cautem-sandbox:gui-gpu (experimental)
+    cmds:
+      - task: image
+        vars:
+          TARGET: gui-gpu
+
   image:both:
     desc: Build cli + gui images
     cmds:
@@ -53,14 +60,14 @@ tasks:
           TARGET: both
 
   image:all:
-    desc: Build cli + gui + gpu images
+    desc: Build cli + gui + gpu + gui-gpu images
     cmds:
       - task: image
         vars:
           TARGET: all
 
   image:
-    desc: "Build sandbox image(s). TARGET=cli|gui|gpu|both|all (default gui)"
+    desc: "Build sandbox image(s). TARGET=cli|gui|gpu|gui-gpu|both|all (default gui)"
     vars:
       TARGET: '{{.TARGET | default "gui"}}'
     cmds:
@@ -80,18 +87,22 @@ tasks:
         trap 'rm -rf "$STAGE"' EXIT
         IMG_DIR="$ROOT/{{.IMAGE_DIR}}"
 
-        echo "cross-compile cautem-init (linux/$ARCH)…"
+        echo "cross-compile cautem-init, cautem-supervisor and cautem-sshd (linux/$ARCH)…"
         GOOS=linux GOARCH="$ARCH" CGO_ENABLED=0 go build -C "$ROOT" -o "$STAGE/cautem-init" ./cmd/cautem-init
+        GOOS=linux GOARCH="$ARCH" CGO_ENABLED=0 go build -C "$ROOT" -o "$STAGE/cautem-supervisor" ./cmd/cautem-supervisor
+        GOOS=linux GOARCH="$ARCH" CGO_ENABLED=0 go build -C "$ROOT" -o "$STAGE/cautem-sshd" ./cmd/cautem-sshd
         cp "$IMG_DIR/Dockerfile" "$STAGE/Dockerfile"
         cp "$IMG_DIR/cautem-gui-boot" "$STAGE/cautem-gui-boot"
         cp "$IMG_DIR/cautem-display-start" "$STAGE/cautem-display-start"
         cp "$IMG_DIR/chromium-cautem" "$STAGE/chromium-cautem"
-        chmod +x "$STAGE/cautem-gui-boot" "$STAGE/cautem-display-start" "$STAGE/chromium-cautem"
+        cp "$IMG_DIR/chromium-cautem-gpu" "$STAGE/chromium-cautem-gpu"
+        chmod +x "$STAGE/cautem-gui-boot" "$STAGE/cautem-display-start" "$STAGE/chromium-cautem" "$STAGE/chromium-cautem-gpu"
 
         build_one() {
           local t="$1" tag="$2"
           echo "docker build --target $t -t $tag …"
           docker build --target "$t" -t "$tag" "$STAGE"
+          docker run --rm --entrypoint /usr/local/bin/cautem-sshd "$tag" --help >/dev/null
           echo "ok: $tag"
         }
 
@@ -99,6 +110,7 @@ tasks:
           cli)  build_one cli "${CAUTEM_SANDBOX_IMAGE:-cautem-sandbox:local}" ;;
           gui)  build_one gui "${CAUTEM_GUI_IMAGE:-cautem-sandbox:gui}" ;;
           gpu)  build_one gpu "${CAUTEM_GPU_IMAGE:-cautem-sandbox:gpu}" ;;
+          gui-gpu) build_one gui-gpu "${CAUTEM_GUI_GPU_IMAGE:-cautem-sandbox:gui-gpu}" ;;
           both)
             build_one cli "${CAUTEM_SANDBOX_IMAGE:-cautem-sandbox:local}"
             build_one gui "${CAUTEM_GUI_IMAGE:-cautem-sandbox:gui}"
@@ -107,9 +119,10 @@ tasks:
             build_one cli "${CAUTEM_SANDBOX_IMAGE:-cautem-sandbox:local}"
             build_one gui "${CAUTEM_GUI_IMAGE:-cautem-sandbox:gui}"
             build_one gpu "${CAUTEM_GPU_IMAGE:-cautem-sandbox:gpu}"
+            build_one gui-gpu "${CAUTEM_GUI_GPU_IMAGE:-cautem-sandbox:gui-gpu}"
             ;;
           *)
-            echo "usage: task runtime:image TARGET=cli|gui|gpu|both|all" >&2
+            echo "usage: task runtime:image TARGET=cli|gui|gpu|gui-gpu|both|all" >&2
             exit 2
             ;;
         esac

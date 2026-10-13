@@ -28,7 +28,7 @@ See the [architecture](https://cautem.github.io/sandbox.dev/concepts/architectur
 
 | Category | Capabilities |
 |----------|--------------|
-| **Images** | `sandboxes/{base,gui,gpu}` on `ghcr.io/cautem/cautem` |
+| **Images** | `sandboxes/{base,gui,gpu,gui-gpu}` on `ghcr.io/cautem/cautem` |
 | **Init** | `cautem-init` — Landlock, seccomp, workspace mount |
 | **Supervisor** | `cautem-supervisor` — PID 1 workload lifecycle and sandbox-side loopback dial socket for `ForwardTcp` |
 | **Relay** | `relaytarget` — validates and dials loopback TCP targets inside the sandbox network namespace over the private shared Unix socket |
@@ -48,6 +48,7 @@ Build from this checkout in the sibling `go.work` workspace. The published alpha
 ghcr.io/cautem/cautem/sandboxes/base:latest
 ghcr.io/cautem/cautem/sandboxes/gui:latest
 ghcr.io/cautem/cautem/sandboxes/gpu:latest
+ghcr.io/cautem/cautem/sandboxes/gui-gpu:latest # experimental GUI+GPU; hardware acceleration unverified
 ```
 
 **Requirements:** Go 1.27+
@@ -62,6 +63,8 @@ Sandbox images declare `USER sandbox` and give that account writable ownership o
 # build guest init into the image context (as CI does)
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
   go build -o images/sandbox/cautem-init ./cmd/cautem-init
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+  go build -o images/sandbox/cautem-supervisor ./cmd/cautem-supervisor
 
 docker build -t cautem-sandbox:local --target cli -f images/sandbox/Dockerfile images/sandbox
 ```
@@ -73,6 +76,7 @@ docker build -t cautem-sandbox:local --target cli -f images/sandbox/Dockerfile i
 | Path | Purpose |
 |------|---------|
 | `cmd/cautem-init` | Guest entrypoint |
+| `cmd/cautem-supervisor` | PID 1 workload supervisor for local and remote control transports |
 | `sandbox/` | Lifecycle helpers |
 | `harden/` | Landlock / seccomp |
 | `secrets/` | Secret store |

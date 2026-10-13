@@ -35,11 +35,19 @@ type Config struct {
 	SSHSocket string
 	// TargetDialSocket delegates TCP target dialing into the sandbox network namespace.
 	TargetDialSocket string
+	// TargetDialEndpoint delegates both SSH and loopback TCP dialing to the
+	// paired workload Pod over its mutually authenticated boundary Service.
+	TargetDialEndpoint string
+	TargetTLSConfig    *tls.Config
 	// SupervisorControlSocket bridges PID 1 lifecycle events through this
 	// authenticated sidecar without exposing its sandbox bearer to the workload.
 	SupervisorControlSocket string
-	TLSConfig               *tls.Config
-	Log                     *slog.Logger
+	// SupervisorControlAddress serves the same lifecycle bridge over mTLS when
+	// the supervisor and workload run in separate pods.
+	SupervisorControlAddress   string
+	SupervisorControlTLSConfig *tls.Config
+	TLSConfig                  *tls.Config
+	Log                        *slog.Logger
 	// DialTarget overrides how targets are dialed (tests).
 	DialTarget func(ctx context.Context, target string) (net.Conn, error)
 	MinBackoff time.Duration
@@ -71,22 +79,26 @@ func (c *Config) defaults() {
 		sock := c.SSHSocket
 		baseDial = func(ctx context.Context, target string) (net.Conn, error) { return dialRelayTarget(ctx, sock, target) }
 	}
-	if targetSocket := strings.TrimSpace(c.TargetDialSocket); targetSocket != "" {
+	if customDial != nil {
+		c.DialTarget = customDial
+	} else if endpoint := strings.TrimSpace(c.TargetDialEndpoint); endpoint != "" {
+		c.DialTarget = func(ctx context.Context, target string) (net.Conn, error) {
+			return dialSandboxTargetTLS(ctx, endpoint, c.TargetTLSConfig, target)
+		}
+	} else if targetSocket := strings.TrimSpace(c.TargetDialSocket); targetSocket != "" {
 		c.DialTarget = func(ctx context.Context, target string) (net.Conn, error) {
 			if target == relayproto.TargetSSH {
 				return baseDial(ctx, target)
 			}
 			return dialSandboxTCP(ctx, targetSocket, target)
 		}
-	} else if customDial == nil {
+	} else {
 		c.DialTarget = func(ctx context.Context, target string) (net.Conn, error) {
 			if target != relayproto.TargetSSH {
 				return nil, errors.New("relayclient: sandbox TCP target dial socket is not configured")
 			}
 			return baseDial(ctx, target)
 		}
-	} else {
-		c.DialTarget = customDial
 	}
 }
 
@@ -154,6 +166,9 @@ func dialRelayTarget(ctx context.Context, sshSocket, target string) (net.Conn, e
 
 // Run keeps the supervisor session alive until ctx is done.
 func Run(ctx context.Context, cfg Config) error {
+	if err := cfg.ValidateTargetTransport(); err != nil {
+		return err
+	}
 	cfg.defaults()
 	if strings.TrimSpace(cfg.GatewayGRPCEndpoint) != "" {
 		return runOpenShell(ctx, cfg)

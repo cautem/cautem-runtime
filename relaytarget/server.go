@@ -5,6 +5,7 @@ package relaytarget
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -26,13 +27,16 @@ import (
 const maxTargetLine = 4096
 
 type Server struct {
-	listener net.Listener
-	done     chan struct{}
-	wg       sync.WaitGroup
-	once     sync.Once
-	mu       sync.Mutex
-	conns    map[net.Conn]struct{}
-	log      *slog.Logger
+	listener  net.Listener
+	path      string
+	fileInfo  os.FileInfo
+	sshSocket string
+	done      chan struct{}
+	wg        sync.WaitGroup
+	once      sync.Once
+	mu        sync.Mutex
+	conns     map[net.Conn]struct{}
+	log       *slog.Logger
 }
 
 // Listen binds a private Unix socket and begins serving validated loopback
@@ -72,9 +76,52 @@ func Listen(socketPath string) (*Server, error) {
 		_ = os.Remove(socketPath)
 		return nil, fmt.Errorf("relaytarget: secure socket: %w", err)
 	}
+	fileInfo, err := os.Lstat(socketPath)
+	if err != nil {
+		_ = listener.Close()
+		_ = os.Remove(socketPath)
+		return nil, fmt.Errorf("relaytarget: inspect bound socket: %w", err)
+	}
 	log := slog.Default().With(slog.String("component", "relaytarget"), slog.String("op", "relaytarget.listen"))
-	s := &Server{listener: listener, done: make(chan struct{}), conns: make(map[net.Conn]struct{}), log: log}
+	s := &Server{listener: listener, path: socketPath, fileInfo: fileInfo, done: make(chan struct{}), conns: make(map[net.Conn]struct{}), log: log}
 	log.Info("relay target listener started", slog.String("socket", socketPath))
+	s.wg.Add(1)
+	go s.accept()
+	return s, nil
+}
+
+// ListenTLS binds an authenticated TCP endpoint for a companion Pod. The
+// client certificate is required and verified before any relay target is
+// accepted. sshSocket is used only for the fixed TargetSSH request; all other
+// targets must be literal loopback TCP addresses.
+func ListenTLS(address string, config *tls.Config, sshSocket string) (*Server, error) {
+	address = strings.TrimSpace(address)
+	if address == "" || strings.Contains(address, "://") {
+		return nil, errors.New("relaytarget: a TCP listen address is required")
+	}
+	if _, _, err := net.SplitHostPort(address); err != nil {
+		return nil, errors.New("relaytarget: listen address must be host:port")
+	}
+	if sshSocket != "" && (!filepath.IsAbs(sshSocket) || filepath.Clean(sshSocket) != sshSocket || filepath.Dir(sshSocket) == "/") {
+		return nil, errors.New("relaytarget: SSH socket path must be clean and absolute")
+	}
+	if config == nil {
+		return nil, errors.New("relaytarget: mutual TLS configuration is required")
+	}
+	tlsConfig := config.Clone()
+	if tlsConfig.MinVersion == 0 {
+		tlsConfig.MinVersion = tls.VersionTLS12
+	}
+	if tlsConfig.MinVersion < tls.VersionTLS12 || tlsConfig.InsecureSkipVerify || tlsConfig.GetConfigForClient != nil || tlsConfig.ClientAuth != tls.RequireAndVerifyClientCert || tlsConfig.ClientCAs == nil || len(tlsConfig.Certificates) == 0 && tlsConfig.GetCertificate == nil {
+		return nil, errors.New("relaytarget: TLS 1.2+ and verified client certificates are required")
+	}
+	listener, err := tls.Listen("tcp", address, tlsConfig)
+	if err != nil {
+		return nil, fmt.Errorf("relaytarget: listen for authenticated TLS target bridge: %w", err)
+	}
+	log := slog.Default().With(slog.String("component", "relaytarget"), slog.String("op", "relaytarget.listen_tls"))
+	s := &Server{listener: listener, sshSocket: sshSocket, done: make(chan struct{}), conns: make(map[net.Conn]struct{}), log: log}
+	log.Info("authenticated relay target listener started", slog.String("address", listener.Addr().String()))
 	s.wg.Add(1)
 	go s.accept()
 	return s, nil
@@ -115,14 +162,21 @@ func (s *Server) accept() {
 
 func (s *Server) serve(local net.Conn) {
 	defer local.Close()
-	_ = local.SetReadDeadline(time.Now().Add(5 * time.Second))
+	_ = local.SetDeadline(time.Now().Add(5 * time.Second))
+	if tlsConn, ok := local.(*tls.Conn); ok {
+		if err := tlsConn.Handshake(); err != nil {
+			s.log.Debug("relay target TLS client rejected", slogx.Err(err))
+			return
+		}
+	}
 	line, err := bufio.NewReaderSize(local, maxTargetLine).ReadSlice('\n')
 	if err != nil || len(line) > maxTargetLine {
 		s.log.Debug("relay target request rejected", slog.String("reason", "invalid request"))
 		_, _ = io.WriteString(local, "ERR invalid target\n")
 		return
 	}
-	target, err := validateTarget(strings.TrimSuffix(string(line), "\n"))
+	targetName := strings.TrimSuffix(string(line), "\n")
+	target, network, err := validateDialTarget(targetName, s.sshSocket)
 	if err != nil {
 		s.log.Debug("relay target request rejected", slog.String("reason", "target is not allowed"))
 		_, _ = io.WriteString(local, "ERR invalid target\n")
@@ -130,7 +184,7 @@ func (s *Server) serve(local net.Conn) {
 	}
 	dialCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	remote, err := (&net.Dialer{}).DialContext(dialCtx, "tcp", target)
+	remote, err := (&net.Dialer{}).DialContext(dialCtx, network, target)
 	if err != nil {
 		s.log.Warn("sandbox relay target dial failed", slog.String("target", target), slogx.Err(err))
 		_, _ = io.WriteString(local, "ERR target unavailable\n")
@@ -165,6 +219,28 @@ func validateTarget(target string) (string, error) {
 	return net.JoinHostPort(ip.String(), strconv.FormatUint(port, 10)), nil
 }
 
+func validateDialTarget(target, sshSocket string) (string, string, error) {
+	if target == relayproto.TargetSSH {
+		if sshSocket == "" || !filepath.IsAbs(sshSocket) || filepath.Clean(sshSocket) != sshSocket {
+			return "", "", errors.New("SSH target is unavailable")
+		}
+		return sshSocket, "unix", nil
+	}
+	address, err := validateTarget(target)
+	if err != nil {
+		return "", "", err
+	}
+	return address, "tcp", nil
+}
+
+// Addr reports the address used by this target bridge listener.
+func (s *Server) Addr() net.Addr {
+	if s == nil || s.listener == nil {
+		return nil
+	}
+	return s.listener.Addr()
+}
+
 // Close stops new requests, waits for active target streams, and removes the
 // socket only if it still refers to this server's filesystem entry.
 func (s *Server) Close() error {
@@ -178,9 +254,9 @@ func (s *Server) Close() error {
 		}
 		s.mu.Unlock()
 		s.wg.Wait()
-		if addr := s.listener.Addr(); addr != nil {
-			if info, err := os.Lstat(addr.String()); err == nil && info.Mode()&os.ModeSocket != 0 {
-				if err := os.Remove(addr.String()); closeErr == nil && err != nil {
+		if s.path != "" && s.fileInfo != nil {
+			if info, err := os.Lstat(s.path); err == nil && os.SameFile(info, s.fileInfo) {
+				if err := os.Remove(s.path); closeErr == nil && err != nil {
 					closeErr = err
 				}
 			}
