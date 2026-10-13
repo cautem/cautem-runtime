@@ -14,6 +14,6 @@ func landlockABI() (int, error) {
 	return 0, errLandlockUnavailable
 }
 
-func applyLandlock(_ policy.Document) error {
+func applyLandlockWithABI(_ policy.Document, _ int) error {
 	return errLandlockUnavailable
 }

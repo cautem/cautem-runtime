@@ -36,20 +36,33 @@ func TestRunReportsAndFinalizesNaturalMainProcessExit(t *testing.T) {
 	var operations []string
 	var operationsMu sync.Mutex
 	server, err := supervisorcontrol.Start(ctx, path, func(_ context.Context, request supervisorcontrol.Request) supervisorcontrol.Response {
-		operationsMu.Lock()
-		operations = append(operations, request.Operation)
-		defer operationsMu.Unlock()
 		switch request.Operation {
 		case supervisorcontrol.OperationBegin:
+			operationsMu.Lock()
+			operations = append(operations, request.Operation)
+			operationsMu.Unlock()
 			return supervisorcontrol.Response{InstanceID: "process-instance"}
 		case supervisorcontrol.OperationReport:
+			operationsMu.Lock()
+			operations = append(operations, request.Operation)
+			operationsMu.Unlock()
 			if request.InstanceID != "process-instance" || request.ExitCode != 7 {
 				return supervisorcontrol.Response{Error: "incorrect report"}
 			}
 		case supervisorcontrol.OperationFinalize:
+			operationsMu.Lock()
+			operations = append(operations, request.Operation)
+			defer operationsMu.Unlock()
 			if len(operations) < 3 || operations[1] != supervisorcontrol.OperationReport {
 				return supervisorcontrol.Response{Error: "finalized before report"}
 			}
+		case supervisorcontrol.OperationProcess:
+			if request.InstanceID != "process-instance" || request.Process == nil {
+				return supervisorcontrol.Response{Error: "invalid process event"}
+			}
+			return supervisorcontrol.Response{InstanceID: "process-instance"}
+		case supervisorcontrol.OperationFlush:
+			return supervisorcontrol.Response{InstanceID: "process-instance"}
 		default:
 			return supervisorcontrol.Response{Error: "unexpected operation"}
 		}

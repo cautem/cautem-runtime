@@ -1,10 +1,34 @@
 package wsinit
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/cautem/cautem-runtime/relaytarget"
+	"github.com/cautem/cautem-runtime/supervisorcontrol"
+)
 
 // These OpenShell variables are consumed by the supervisor and must not leak
 // into the workload process environment.
 var supervisorOnlyEnv = map[string]struct{}{
+	supervisorcontrol.EnvSocket:                     {},
+	supervisorcontrol.EnvEndpoint:                   {},
+	supervisorcontrol.EnvClientCA:                   {},
+	supervisorcontrol.EnvClientCert:                 {},
+	supervisorcontrol.EnvClientKey:                  {},
+	supervisorcontrol.EnvPrivateDir:                 {},
+	supervisorcontrol.EnvServerCA:                   {},
+	supervisorcontrol.EnvServerCert:                 {},
+	supervisorcontrol.EnvServerKey:                  {},
+	relaytarget.EnvEndpoint:                         {},
+	relaytarget.EnvListen:                           {},
+	relaytarget.EnvClientCA:                         {},
+	relaytarget.EnvServerCert:                       {},
+	relaytarget.EnvServerKey:                        {},
+	relaytarget.EnvSSHSock:                          {},
+	relaytarget.EnvServerCA:                         {},
+	relaytarget.EnvClientCert:                       {},
+	relaytarget.EnvClientKey:                        {},
+	"CAUTEM_RELAY_TARGET_SOCKET":                    {},
 	"OPENSHELL_OCI_IMAGE_USER":                      {},
 	"OPENSHELL_SANDBOX_UID":                         {},
 	"OPENSHELL_SANDBOX_GID":                         {},
