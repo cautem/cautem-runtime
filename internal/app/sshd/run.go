@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/cautem/cautem-core/defaults"
-	"github.com/cautem/cautem-runtime/sshserver"
+	"github.com/cautem/quarshell-runtime/sshserver"
 	"golang.org/x/crypto/ssh"
 )
 

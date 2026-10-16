@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cautem/cautem-runtime/internal/logging"
+	"github.com/cautem/quarshell-runtime/internal/logging"
 	"github.com/cautem/slogx"
 )
 

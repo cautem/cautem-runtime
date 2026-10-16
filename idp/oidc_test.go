@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cautem/cautem-runtime/idp"
+	"github.com/cautem/quarshell-runtime/idp"
 )
 
 func TestOIDCValidateRS256(t *testing.T) {

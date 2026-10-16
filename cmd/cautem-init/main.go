@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cautem/cautem-runtime/internal/app/wsinit"
+	"github.com/cautem/quarshell-runtime/internal/app/wsinit"
 )
 
 func main() {

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cautem/cautem-runtime/relaytarget"
-	"github.com/cautem/cautem-runtime/supervisorcontrol"
+	"github.com/cautem/quarshell-runtime/relaytarget"
+	"github.com/cautem/quarshell-runtime/supervisorcontrol"
 )
 
 func TestParseArgsRequiresSeparatorAndPreservesArgv(t *testing.T) {

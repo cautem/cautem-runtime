@@ -3,8 +3,8 @@ package wsinit
 import (
 	"strings"
 
-	"github.com/cautem/cautem-runtime/relaytarget"
-	"github.com/cautem/cautem-runtime/supervisorcontrol"
+	"github.com/cautem/quarshell-runtime/relaytarget"
+	"github.com/cautem/quarshell-runtime/supervisorcontrol"
 )
 
 // These OpenShell variables are consumed by the supervisor and must not leak

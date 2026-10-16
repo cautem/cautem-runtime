@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cautem/cautem-runtime/internal/app/sshd"
+	"github.com/cautem/quarshell-runtime/internal/app/sshd"
 )
 
 func main() {

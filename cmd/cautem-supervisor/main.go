@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cautem/cautem-runtime/internal/app/supervisor"
+	"github.com/cautem/quarshell-runtime/internal/app/supervisor"
 )
 
 func main() {

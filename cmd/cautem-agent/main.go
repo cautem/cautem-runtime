@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cautem/cautem-runtime/internal/app/agent"
+	"github.com/cautem/quarshell-runtime/internal/app/agent"
 )
 
 func main() {

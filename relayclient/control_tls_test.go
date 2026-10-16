@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cautem/cautem-runtime/supervisorcontrol"
+	"github.com/cautem/quarshell-runtime/supervisorcontrol"
 )
 
 func TestLifecycleControlServesRemoteWorkloadOverMTLS(t *testing.T) {

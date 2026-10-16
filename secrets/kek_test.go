@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cautem/cautem-runtime/secrets"
+	"github.com/cautem/quarshell-runtime/secrets"
 )
 
 func TestInspectPinnedEnv(t *testing.T) {
