@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -81,73 +82,160 @@ func Run(args []string) (int, error) {
 			}
 		}()
 	}
-	instanceID := ""
-	if controlClient != nil {
-		instanceID, err = beginProcessInstance(controlClient)
-		if err != nil {
-			return 125, fmt.Errorf("cautem-supervisor: begin OpenShell process instance: %w", err)
-		}
+	restartPolicy, err := parseRestartPolicy(os.Getenv("CAUTEM_MAIN_PROCESS_RESTART_POLICY"))
+	if err != nil {
+		return 125, err
 	}
-	command := exec.Command(args[0], args[1:]...)
-	command.Stdin, command.Stdout, command.Stderr = os.Stdin, os.Stdout, os.Stderr
-	command.Env = workloadEnvironment(privateCredentialDir)
-	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	signals := make(chan os.Signal, 16)
 	signal.Notify(signals, syscall.SIGCHLD, syscall.SIGTERM, syscall.SIGINT, syscall.SIGHUP, syscall.SIGQUIT)
 	defer signal.Stop(signals)
 	if err := enableChildSubreaper(); err != nil {
 		return 125, fmt.Errorf("cautem-supervisor: enable child reaping: %w", err)
 	}
-	if err := command.Start(); err != nil {
-		return 127, fmt.Errorf("cautem-supervisor: start workload: %w", err)
+	readinessPublished := false
+	for restart := 0; ; restart++ {
+		instanceID := ""
+		if controlClient != nil {
+			instanceID, err = beginProcessInstance(controlClient)
+			if err != nil {
+				return 125, fmt.Errorf("cautem-supervisor: begin OpenShell process instance: %w", err)
+			}
+		}
+		command := exec.Command(args[0], args[1:]...)
+		command.Stdin, command.Stdout, command.Stderr = os.Stdin, os.Stdout, os.Stderr
+		command.Env = workloadEnvironment(privateCredentialDir)
+		command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+		if err := command.Start(); err != nil {
+			return 127, fmt.Errorf("cautem-supervisor: start workload: %w", err)
+		}
+		if !readinessPublished {
+			if err := publishSupervisorReadiness(); err != nil {
+				_ = signalWorkloadGroup(command.Process.Pid, syscall.SIGKILL)
+				_ = command.Wait()
+				return 125, err
+			}
+			readinessPublished = true
+		}
+		processMonitor := startProcessMonitor(controlClient, instanceID, command.Process.Pid, command.Path)
+		result := make(chan error, 1)
+		go func() { result <- command.Wait() }()
+		shutdownRequested := false
+		var waitErr error
+		for !shutdownRequested {
+			select {
+			case signal := <-signals:
+				if signal == syscall.SIGCHLD {
+					reapWorkloadChildren(command.Process.Pid, processMonitor)
+					continue
+				}
+				shutdownRequested = true
+				if err := signalWorkloadGroup(command.Process.Pid, signal); err != nil && !errors.Is(err, syscall.ESRCH) {
+					fmt.Fprintf(os.Stderr, "cautem-supervisor: forward %s: %v\n", signal, err)
+				}
+			case waitErr = <-result:
+				goto workloadExited
+			}
+		}
+		waitErr = <-result
+	workloadExited:
+		code, resultErr := workloadExitCode(waitErr)
+		if processMonitor != nil {
+			processMonitor.MainExit()
+		}
+		stopWorkloadGroup(command.Process.Pid, processMonitor)
+		if processMonitor != nil {
+			processMonitor.Close()
+			flushProcessEvents(controlClient, instanceID)
+		}
+		for {
+			select {
+			case signal := <-signals:
+				if signal != syscall.SIGCHLD {
+					shutdownRequested = true
+				}
+			default:
+				goto signalsDrained
+			}
+		}
+	signalsDrained:
+		if shouldRestartMainProcess(restartPolicy, code, resultErr, shutdownRequested) {
+			if !waitForRestart(signals, restartBackoff(restart)) {
+				shutdownRequested = true
+			}
+			if !shutdownRequested {
+				continue
+			}
+		}
+		if controlClient != nil && instanceID != "" && !shutdownRequested && resultErr == nil {
+			if err := reportProcessExitUntilAck(controlClient, instanceID, int32(code)); err != nil {
+				return 125, err
+			}
+			if err := finalizeProcessExitUntilAck(controlClient, instanceID); err != nil {
+				return 125, err
+			}
+		}
+		return code, resultErr
 	}
-	processMonitor := startProcessMonitor(controlClient, instanceID, command.Process.Pid, command.Path)
+}
 
-	result := make(chan error, 1)
-	go func() { result <- command.Wait() }()
-	shutdownRequested := false
+type mainProcessRestartPolicy uint8
 
+const (
+	mainProcessRestartNever mainProcessRestartPolicy = iota
+	mainProcessRestartOnFailure
+	mainProcessRestartAlways
+)
+
+func parseRestartPolicy(raw string) (mainProcessRestartPolicy, error) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "", "never":
+		return mainProcessRestartNever, nil
+	case "on-failure":
+		return mainProcessRestartOnFailure, nil
+	case "always":
+		return mainProcessRestartAlways, nil
+	default:
+		return mainProcessRestartNever, fmt.Errorf("cautem-supervisor: invalid main process restart policy %q", raw)
+	}
+}
+
+func shouldRestartMainProcess(policy mainProcessRestartPolicy, exitCode int, waitErr error, shutdown bool) bool {
+	if shutdown || waitErr != nil {
+		return false
+	}
+	switch policy {
+	case mainProcessRestartAlways:
+		return true
+	case mainProcessRestartOnFailure:
+		return exitCode != 0
+	default:
+		return false
+	}
+}
+
+func restartBackoff(restart int) time.Duration {
+	delay := 100 * time.Millisecond
+	for i := 0; i < restart && delay < 5*time.Second; i++ {
+		delay *= 2
+	}
+	if delay > 5*time.Second {
+		return 5 * time.Second
+	}
+	return delay
+}
+
+func waitForRestart(signals chan os.Signal, delay time.Duration) bool {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
 	for {
 		select {
 		case signal := <-signals:
 			if signal == syscall.SIGCHLD {
-				reapWorkloadChildren(command.Process.Pid, processMonitor)
 				continue
 			}
-			shutdownRequested = true
-			if err := signalWorkloadGroup(command.Process.Pid, signal); err != nil && !errors.Is(err, syscall.ESRCH) {
-				fmt.Fprintf(os.Stderr, "cautem-supervisor: forward %s: %v\n", signal, err)
-			}
-		case err := <-result:
-			code, waitErr := workloadExitCode(err)
-			if processMonitor != nil {
-				processMonitor.MainExit()
-			}
-			stopWorkloadGroup(command.Process.Pid, processMonitor)
-			if processMonitor != nil {
-				processMonitor.Close()
-				flushProcessEvents(controlClient, instanceID)
-			}
-			for {
-				select {
-				case signal := <-signals:
-					if signal != syscall.SIGCHLD {
-						shutdownRequested = true
-					}
-				default:
-					goto signalsDrained
-				}
-			}
-		signalsDrained:
-			if controlClient != nil && instanceID != "" && !shutdownRequested && waitErr == nil {
-				if err := reportProcessExitUntilAck(controlClient, instanceID, int32(code)); err != nil {
-					return 125, err
-				}
-				if err := finalizeProcessExitUntilAck(controlClient, instanceID); err != nil {
-					return 125, err
-				}
-			}
-			return code, waitErr
+			return false
+		case <-timer.C:
+			return true
 		}
 	}
 }
@@ -233,7 +321,9 @@ func lifecycleUntilAck(controlClient *supervisorcontrol.Client, request supervis
 
 func workloadEnvironment(privateCredentialDir string) []string {
 	privateControlEnv := map[string]struct{}{
-		supervisorcontrol.EnvSocket: {}, supervisorcontrol.EnvEndpoint: {}, supervisorcontrol.EnvListen: {},
+		"CAUTEM_MAIN_PROCESS_RESTART_POLICY": {},
+		envSupervisorReadyFile:               {},
+		supervisorcontrol.EnvSocket:          {}, supervisorcontrol.EnvEndpoint: {}, supervisorcontrol.EnvListen: {},
 		supervisorcontrol.EnvClientCA: {}, supervisorcontrol.EnvClientCert: {}, supervisorcontrol.EnvClientKey: {},
 		supervisorcontrol.EnvPrivateDir: {},
 		supervisorcontrol.EnvServerCA:   {}, supervisorcontrol.EnvServerCert: {}, supervisorcontrol.EnvServerKey: {},
@@ -271,6 +361,39 @@ func ParseArgs(args []string) ([]string, error) {
 }
 
 const shutdownGrace = 2 * time.Second
+
+const envSupervisorReadyFile = "CAUTEM_VM_SUPERVISOR_READY_FILE"
+
+const supervisorReadyContents = "quarshell-supervisor-ready-v1\n"
+
+func publishSupervisorReadiness() error {
+	path := strings.TrimSpace(os.Getenv(envSupervisorReadyFile))
+	if path == "" {
+		return nil
+	}
+	if !filepath.IsAbs(path) || filepath.Clean(path) != path {
+		return errors.New("cautem-supervisor: readiness file path must be absolute and clean")
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		return fmt.Errorf("cautem-supervisor: publish readiness: %w", err)
+	}
+	if _, err := file.WriteString(supervisorReadyContents); err != nil {
+		_ = file.Close()
+		_ = os.Remove(path)
+		return fmt.Errorf("cautem-supervisor: write readiness: %w", err)
+	}
+	if err := file.Sync(); err != nil {
+		_ = file.Close()
+		_ = os.Remove(path)
+		return fmt.Errorf("cautem-supervisor: sync readiness: %w", err)
+	}
+	if err := file.Close(); err != nil {
+		_ = os.Remove(path)
+		return fmt.Errorf("cautem-supervisor: close readiness: %w", err)
+	}
+	return nil
+}
 
 func stopWorkloadGroup(pid int, monitor processEventMonitor) {
 	_ = signalWorkloadGroup(pid, syscall.SIGTERM)

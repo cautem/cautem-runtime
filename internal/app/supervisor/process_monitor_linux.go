@@ -161,8 +161,7 @@ func (m *linuxProcessEventMonitor) scan() {
 				continue
 			}
 			_, parentTracked := m.active[process.ParentPID]
-			adoptedBySupervisor := process.ParentPID == self && self == m.mainPID
-			if process.ParentPID != m.mainPID && !parentTracked && !adoptedBySupervisor && process.GroupID != m.mainPID {
+			if !isWorkloadDescendant(process, m.mainPID, self, parentTracked) {
 				continue
 			}
 			process.Executable = processExecutable(pid, "unknown")
@@ -175,6 +174,13 @@ func (m *linuxProcessEventMonitor) scan() {
 	for _, event := range events {
 		m.emit(event.activity, event.pid, event.parentPID, event.executable)
 	}
+}
+
+func isWorkloadDescendant(process linuxProcessInfo, mainPID, supervisorPID int, parentTracked bool) bool {
+	// A subreaper adopts orphaned workload processes directly. They can have a
+	// process group different from the main workload (notably under rootless
+	// Podman), so parentage to the supervisor is sufficient to keep tracking.
+	return process.ParentPID == mainPID || parentTracked || process.ParentPID == supervisorPID || process.GroupID == mainPID
 }
 
 type linuxProcessEvent struct {

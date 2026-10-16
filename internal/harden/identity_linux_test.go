@@ -12,7 +12,7 @@ import (
 	"github.com/cautem/cautem-core/policy"
 )
 
-func TestTargetIDsUsesOpenShellDriverIdentityBeforePolicy(t *testing.T) {
+func TestTargetIDsUsesCompatDriverIdentityBeforePolicy(t *testing.T) {
 	t.Setenv(sandboxUIDEnv, "1201")
 	t.Setenv(sandboxGIDEnv, "1202")
 	doc := policy.Document{Process: &policy.Process{RunAsUser: "2201", RunAsGroup: "2202"}}

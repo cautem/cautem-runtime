@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [v0.3.0] - 2026-10-16
+
+### Added
+
+- Support `never`, `on-failure`, and `always` workload restart policies with bounded backoff.
+- Refresh supervisor session tokens and honor the Gateway-advertised heartbeat interval.
+
+### Changed
+
+- Track orphaned workload processes adopted by the supervisor and publish VM supervisor readiness.
+- Use timestamp and duration fields from the pinned OpenShell v0.1.4 protocol.
+
+### Fixed
+
+- Install agent instructions through POSIX `/bin/sh` so minimal guest images do not require Bash.
+
 ## [v0.2.1] - 2026-10-13
 
 ### Fixed

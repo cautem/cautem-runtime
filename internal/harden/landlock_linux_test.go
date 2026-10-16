@@ -209,7 +209,7 @@ func landlockChildArgs(testName, coverageDir string) []string {
 	return args
 }
 
-func TestLandlockOpenShellDefaultGrantsOnlyWorkdir(t *testing.T) {
+func TestLandlockCompatDefaultGrantsOnlyWorkdir(t *testing.T) {
 	reads, writes := filesystemPaths(policy.Document{}, "/workspace")
 	if len(reads) != 0 || len(writes) != 1 || writes[0] != "/workspace" {
 		t.Fatalf("default Landlock paths = reads %v, writes %v; want only /workspace", reads, writes)

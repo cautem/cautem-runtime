@@ -140,10 +140,10 @@ func TestValidateTargetTransport(t *testing.T) {
 	}
 }
 
-func TestRunOpenShellRejectsTargetEndpointWithoutTLSBeforeConnecting(t *testing.T) {
-	err := RunOpenShell(context.Background(), Config{TargetDialEndpoint: "workload.default.svc:5500"})
+func TestRunSupervisorGRPCRejectsTargetEndpointWithoutTLSBeforeConnecting(t *testing.T) {
+	err := RunSupervisorGRPC(context.Background(), Config{TargetDialEndpoint: "workload.default.svc:5500"})
 	if err == nil || !strings.Contains(err.Error(), "requires mutual TLS credentials") {
-		t.Fatalf("RunOpenShell() error = %v, want missing target mTLS credentials", err)
+		t.Fatalf("RunSupervisorGRPC() error = %v, want missing target mTLS credentials", err)
 	}
 }
 

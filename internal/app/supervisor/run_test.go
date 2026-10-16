@@ -40,26 +40,27 @@ func TestRunRejectsEmptyCommand(t *testing.T) {
 
 func TestWorkloadEnvironmentDropsSupervisorControlCredentials(t *testing.T) {
 	privateValues := map[string]string{
-		supervisorcontrol.EnvSocket:     "/run/cautem/control.sock",
-		supervisorcontrol.EnvEndpoint:   "supervisor.default.svc:5502",
-		supervisorcontrol.EnvClientCA:   "/run/cautem/control/ca.pem",
-		supervisorcontrol.EnvClientCert: "/run/cautem/control/tls.crt",
-		supervisorcontrol.EnvClientKey:  "/run/cautem/control/tls.key",
-		supervisorcontrol.EnvPrivateDir: "/untrusted/workload/override",
-		supervisorcontrol.EnvListen:     "0.0.0.0:5502",
-		supervisorcontrol.EnvServerCA:   "/run/cautem/control/server-ca.pem",
-		supervisorcontrol.EnvServerCert: "/run/cautem/control/server.crt",
-		supervisorcontrol.EnvServerKey:  "/run/cautem/control/server.key",
-		relaytarget.EnvListen:           "0.0.0.0:5503",
-		relaytarget.EnvClientCA:         "/run/cautem/control/target-client-ca.pem",
-		relaytarget.EnvServerCert:       "/run/cautem/control/target-server.crt",
-		relaytarget.EnvServerKey:        "/run/cautem/control/target-server.key",
-		relaytarget.EnvSSHSock:          "/cautem/ssh/sshd.sock",
-		relaytarget.EnvServerCA:         "/run/cautem/control/target-server-ca.pem",
-		relaytarget.EnvClientCert:       "/run/cautem/control/target-client.crt",
-		relaytarget.EnvClientKey:        "/run/cautem/control/target-client.key",
-		"CAUTEM_RELAY_TARGET_SOCKET":    "/run/cautem/target.sock",
-		"CAUTEM_TEST_WORKLOAD_VALUE":    "visible",
+		supervisorcontrol.EnvSocket:          "/run/cautem/control.sock",
+		supervisorcontrol.EnvEndpoint:        "supervisor.default.svc:5502",
+		supervisorcontrol.EnvClientCA:        "/run/cautem/control/ca.pem",
+		supervisorcontrol.EnvClientCert:      "/run/cautem/control/tls.crt",
+		supervisorcontrol.EnvClientKey:       "/run/cautem/control/tls.key",
+		supervisorcontrol.EnvPrivateDir:      "/untrusted/workload/override",
+		supervisorcontrol.EnvListen:          "0.0.0.0:5502",
+		supervisorcontrol.EnvServerCA:        "/run/cautem/control/server-ca.pem",
+		supervisorcontrol.EnvServerCert:      "/run/cautem/control/server.crt",
+		supervisorcontrol.EnvServerKey:       "/run/cautem/control/server.key",
+		relaytarget.EnvListen:                "0.0.0.0:5503",
+		relaytarget.EnvClientCA:              "/run/cautem/control/target-client-ca.pem",
+		relaytarget.EnvServerCert:            "/run/cautem/control/target-server.crt",
+		relaytarget.EnvServerKey:             "/run/cautem/control/target-server.key",
+		relaytarget.EnvSSHSock:               "/cautem/ssh/sshd.sock",
+		relaytarget.EnvServerCA:              "/run/cautem/control/target-server-ca.pem",
+		relaytarget.EnvClientCert:            "/run/cautem/control/target-client.crt",
+		relaytarget.EnvClientKey:             "/run/cautem/control/target-client.key",
+		"CAUTEM_RELAY_TARGET_SOCKET":         "/run/cautem/target.sock",
+		"CAUTEM_MAIN_PROCESS_RESTART_POLICY": "always",
+		"CAUTEM_TEST_WORKLOAD_VALUE":         "visible",
 	}
 	for name, value := range privateValues {
 		t.Setenv(name, value)
@@ -87,6 +88,7 @@ func TestWorkloadEnvironmentDropsSupervisorControlCredentials(t *testing.T) {
 		relaytarget.EnvClientCert,
 		relaytarget.EnvClientKey,
 		"CAUTEM_RELAY_TARGET_SOCKET",
+		"CAUTEM_MAIN_PROCESS_RESTART_POLICY",
 	} {
 		if strings.Contains(joined, name+"=") {
 			t.Errorf("workload environment leaked %s", name)

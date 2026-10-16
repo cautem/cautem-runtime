@@ -63,8 +63,11 @@ func TestProcessEventLinuxChildHelper(t *testing.T) {
 	switch os.Getenv(processEventHelperModeEnv) {
 	case "":
 		return
-	case "spawn-orphan":
+	case "spawn-orphan", "spawn-orphan-long":
 		child := exec.Command("sleep", "0.25")
+		if os.Getenv(processEventHelperModeEnv) == "spawn-orphan-long" {
+			child = exec.Command("sleep", "30")
+		}
 		if err := child.Start(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(2)
@@ -74,6 +77,28 @@ func TestProcessEventLinuxChildHelper(t *testing.T) {
 			os.Exit(2)
 		}
 		os.Exit(0)
+	case "subreaper-adoption":
+		if os.Getpid() == 1 {
+			t.Fatal("fixture must exercise a supervisor process that is not PID 1")
+		}
+		if err := enableChildSubreaper(); err != nil {
+			t.Fatalf("enable child subreaper: %v", err)
+		}
+		pidFile := os.Getenv(processEventHelperPIDEnv)
+		child := exec.Command(os.Args[0], "-test.run=^TestProcessEventLinuxChildHelper$")
+		child.Env = processEventHelperEnv("spawn-orphan-long", processEventHelperPIDEnv, pidFile)
+		if output, err := child.CombinedOutput(); err != nil {
+			t.Fatalf("spawn orphan fixture: %v\n%s", err, output)
+		}
+		pid := readPIDFile(t, pidFile)
+		defer func() {
+			_ = syscall.Kill(pid, syscall.SIGKILL)
+			var status syscall.WaitStatus
+			_, _ = syscall.Wait4(pid, &status, 0, nil)
+		}()
+		waitForLinuxProcess(t, pid, func(process linuxProcessInfo) bool {
+			return process.ParentPID == os.Getpid() && process.State != "Z"
+		})
 	case "timed-exit":
 		delay, err := strconv.Atoi(os.Getenv(processEventHelperDelayEnv))
 		if err != nil || delay < 0 {
@@ -89,6 +114,15 @@ func TestProcessEventLinuxChildHelper(t *testing.T) {
 	default:
 		fmt.Fprintln(os.Stderr, "unknown helper mode")
 		os.Exit(2)
+	}
+}
+
+func TestEnableChildSubreaperAdoptsDescendantsWithoutPIDOne(t *testing.T) {
+	pidFile := filepath.Join(t.TempDir(), "child.pid")
+	helper := exec.Command(os.Args[0], "-test.run=^TestProcessEventLinuxChildHelper$")
+	helper.Env = processEventHelperEnv("subreaper-adoption", processEventHelperPIDEnv, pidFile)
+	if output, err := helper.CombinedOutput(); err != nil {
+		t.Fatalf("non-PID-1 supervisor did not adopt its orphaned descendant: %v\n%s", err, output)
 	}
 }
 
@@ -150,6 +184,44 @@ func TestReapAdoptedChildrenDoesNotStealMainProcessWait(t *testing.T) {
 type processEventReceipt struct {
 	event      supervisorcontrol.ProcessEvent
 	receivedAt time.Time
+}
+
+func TestWorkloadProcessTreeIncludesAdoptedChildrenOutsideMainProcessGroup(t *testing.T) {
+	const (
+		supervisorPID = 1
+		mainPID       = 10
+	)
+	tests := []struct {
+		name          string
+		process       linuxProcessInfo
+		parentTracked bool
+		want          bool
+	}{
+		{
+			name:    "adopted child with separate process group",
+			process: linuxProcessInfo{PID: 42, ParentPID: supervisorPID, GroupID: 41},
+			want:    true,
+		},
+		{
+			name:          "child of tracked workload descendant",
+			process:       linuxProcessInfo{PID: 43, ParentPID: 42, GroupID: 41},
+			parentTracked: true,
+			want:          true,
+		},
+		{
+			name:    "unrelated process",
+			process: linuxProcessInfo{PID: 44, ParentPID: 2, GroupID: 3},
+			want:    false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := isWorkloadDescendant(test.process, mainPID, supervisorPID, test.parentTracked)
+			if got != test.want {
+				t.Fatalf("isWorkloadDescendant(%+v) = %t, want %t", test.process, got, test.want)
+			}
+		})
+	}
 }
 
 func TestRunCollectsCoalescedAdoptedChildExits(t *testing.T) {

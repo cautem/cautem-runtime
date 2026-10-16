@@ -75,7 +75,7 @@ func TestOIDCValidateRS256(t *testing.T) {
 	}
 }
 
-func TestOIDCValidateOpenShellJWKSAlgorithms(t *testing.T) {
+func TestOIDCValidateCompatJWKSAlgorithms(t *testing.T) {
 	tests := []struct {
 		name string
 		alg  string

@@ -25,7 +25,7 @@ func TestLifecycleControlServesRemoteWorkloadOverMTLS(t *testing.T) {
 	serverRoots := x509.NewCertPool()
 	serverRoots.AddCert(ca)
 
-	instance := newOpenShellInstance("initial-instance")
+	instance := newSupervisorInstance("initial-instance")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	server, err := startLifecycleControl(ctx, Config{

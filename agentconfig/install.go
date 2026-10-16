@@ -23,7 +23,7 @@ func Install(g Guest, st Staged) error {
 		return fmt.Errorf("agentconfig: /etc/cautem: %w", err)
 	}
 	installAgents := fmt.Sprintf(`if [ -w / ] && [ ! -e /%s ] && [ ! -L /%s ]; then cp /etc/cautem/%s /%s; fi`, agentsMDName, agentsMDName, agentsMDName, agentsMDName)
-	if err := g.ExecRaw([]string{"/bin/bash", "-c", installAgents}); err != nil {
+	if err := g.ExecRaw([]string{"/bin/sh", "-c", installAgents}); err != nil {
 		return fmt.Errorf("agentconfig: /AGENTS.md: %w", err)
 	}
 	return nil

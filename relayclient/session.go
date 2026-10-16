@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-// runOpenShell speaks the pinned OpenShell ConnectSupervisor and RelayStream
+// runSupervisorGRPC speaks the Gateway supervisor and relay gRPC
 // gRPC protocol. It is selected when GatewayGRPCEndpoint is configured.
 
 type supervisorControl struct {
@@ -25,7 +25,7 @@ func (c *supervisorControl) send(message *openshellv1.SupervisorMessage) error {
 	return c.stream.Send(message)
 }
 
-func openShellSession(ctx context.Context, client openshellv1.OpenShellClient, cfg Config, instanceID string, instance *openShellInstance, token *supervisorToken) error {
+func supervisorSession(ctx context.Context, client openshellv1.OpenShellClient, cfg Config, instanceID string, instance *supervisorInstance, token *supervisorToken) error {
 	sessionCtx, sessionCancel := context.WithCancel(ctx)
 	defer sessionCancel()
 	if token.get() == "" {
@@ -48,14 +48,14 @@ func openShellSession(ctx context.Context, client openshellv1.OpenShellClient, c
 		return fmt.Errorf("gateway rejected supervisor session: %s", rejected.GetReason())
 	}
 	if accepted.GetSessionAccepted() == nil {
-		return errors.New("gateway did not accept OpenShell supervisor session")
+		return errors.New("gateway did not accept supervisor session")
 	}
 	instance.markConnected(instanceID)
 	defer instance.markDisconnected(instanceID)
 	if cfg.OnConnected != nil {
 		cfg.OnConnected()
 	}
-	interval := time.Duration(accepted.GetSessionAccepted().GetHeartbeatIntervalSecs()) * time.Second
+	interval := accepted.GetSessionAccepted().GetHeartbeatInterval().AsDuration()
 	if interval <= 0 {
 		interval = 15 * time.Second
 	}
@@ -106,7 +106,7 @@ func openShellSession(ctx context.Context, client openshellv1.OpenShellClient, c
 				return result.err
 			}
 			if open := result.message.GetRelayOpen(); open != nil {
-				go openShellRelay(sessionCtx, client, control, cfg, token, open)
+				go openSupervisorRelayStream(sessionCtx, client, control, cfg, token, open)
 				continue
 			}
 			if result.message.GetHeartbeat() != nil {

@@ -10,9 +10,8 @@ import (
 )
 
 func enableChildSubreaper() error {
-	if os.Getpid() != 1 {
-		return nil
-	}
+	// The supervisor may run below PID 1 in rootless/containerized runtimes;
+	// it still must adopt and reap orphaned workload descendants itself.
 	const prSetChildSubreaper = 36
 	_, _, errno := syscall.Syscall6(syscall.SYS_PRCTL, prSetChildSubreaper, 1, 0, 0, 0, 0)
 	if errno != 0 {

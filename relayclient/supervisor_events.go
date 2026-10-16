@@ -13,6 +13,7 @@ import (
 	"github.com/cautem/cautem-runtime/supervisorcontrol"
 	"github.com/cautem/slogx"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -141,12 +142,12 @@ func pushProcessEventBatch(ctx context.Context, cfg Config, client openshellv1.O
 		parentPID := strconv.Itoa(event.ParentPID)
 		message := fmt.Sprintf("%s OCSF PROC:%s [INFO] ALLOWED pid=%s ppid=%s executable=%s", ts.Format(time.RFC3339Nano), event.Activity, pid, parentPID, event.Executable)
 		lines = append(lines, &openshellv1.SandboxLogLine{
-			SandboxId:   cfg.Sandbox,
-			TimestampMs: event.Timestamp,
-			Level:       "OCSF",
-			Target:      event.Executable,
-			Message:     message,
-			Source:      "sandbox",
+			SandboxId: cfg.Sandbox,
+			EventTime: timestamppb.New(ts),
+			Level:     "OCSF",
+			Target:    event.Executable,
+			Message:   message,
+			Source:    "sandbox",
 			Fields: map[string]string{
 				"activity":    event.Activity,
 				"pid":         pid,
