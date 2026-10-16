@@ -259,11 +259,12 @@ func TestRunAlwaysRestartsSuccessfulExitAndStopsAfterSignal(t *testing.T) {
 func TestRunKillsOrphanedWorkloadDescendants(t *testing.T) {
 	enableTestSubreaper(t)
 	pidFile := filepath.Join(t.TempDir(), "child.pid")
+	readyFile := filepath.Join(t.TempDir(), "ready")
 	done := make(chan struct {
 		code int
 		err  error
 	}, 1)
-	command := fmt.Sprintf("(trap '' TERM; exec sleep 30) & echo $! > %q; trap 'exit 0' TERM; wait", pidFile)
+	command := fmt.Sprintf("trap 'exit 0' TERM; (trap '' TERM; exec sleep 30) & echo $! > %q; : > %q; wait", pidFile, readyFile)
 	go func() {
 		code, err := Run([]string{"sh", "-c", command})
 		done <- struct {
@@ -274,7 +275,11 @@ func TestRunKillsOrphanedWorkloadDescendants(t *testing.T) {
 	var childPID int
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		if data, err := os.ReadFile(pidFile); err == nil {
+		if _, err := os.Stat(readyFile); err == nil {
+			data, err := os.ReadFile(pidFile)
+			if err != nil {
+				t.Fatal(err)
+			}
 			childPID, _ = strconv.Atoi(string(bytes.TrimSpace(data)))
 			if childPID > 0 {
 				break

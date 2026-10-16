@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/cautem/quarshell-runtime/internal/logging"
-	"github.com/cautem/slogx"
+	"github.com/cautem/quarshell-slogx"
 )
 
 func Run(args []string) error {

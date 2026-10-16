@@ -24,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cautem/slogx"
+	"github.com/cautem/quarshell-slogx"
 	"golang.org/x/crypto/ssh"
 )
 

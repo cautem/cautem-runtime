@@ -11,7 +11,7 @@ import (
 
 	openshellv1 "github.com/NVIDIA/OpenShell/sdk/go/proto/openshellv1"
 	"github.com/cautem/quarshell-runtime/supervisorcontrol"
-	"github.com/cautem/slogx"
+	"github.com/cautem/quarshell-slogx"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )

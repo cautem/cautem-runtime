@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/cautem/quarshell-core/relayproto"
-	"github.com/cautem/slogx"
+	"github.com/cautem/quarshell-slogx"
 )
 
 const maxTargetLine = 4096
