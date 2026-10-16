@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestWorkloadEnvironmentStripsSupervisorOnlyControlAndOpenShellVariables(t *testing.T) {
+func TestWorkloadEnvironmentStripsSupervisorOnlyControlAndCompatVariables(t *testing.T) {
 	in := []string{
 		"PATH=/usr/bin",
 		"CAUTEM_SUPERVISOR_CONTROL_SOCKET=/run/control.sock",

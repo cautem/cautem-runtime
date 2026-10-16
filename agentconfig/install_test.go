@@ -40,6 +40,9 @@ func TestInstallPreservesImageAgentsFile(t *testing.T) {
 	if len(guest.execArgs) != 1 || len(guest.execArgs[0]) != 3 {
 		t.Fatalf("exec calls = %#v, want one shell guard", guest.execArgs)
 	}
+	if guest.execArgs[0][0] != "/bin/sh" || guest.execArgs[0][1] != "-c" {
+		t.Fatalf("shell command = %#v, want portable POSIX /bin/sh", guest.execArgs[0][:2])
+	}
 	script := guest.execArgs[0][2]
 	if !strings.Contains(script, "[ ! -e /AGENTS.md ]") || !strings.Contains(script, "[ ! -L /AGENTS.md ]") {
 		t.Fatalf("root guidance lacks no-overwrite guard: %s", script)

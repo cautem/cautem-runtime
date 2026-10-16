@@ -25,7 +25,7 @@ func TestPrepareReadWritePathsRejectsSymlink(t *testing.T) {
 	}
 }
 
-func TestFilesystemPathsPreservesExplicitOpenShellGrants(t *testing.T) {
+func TestFilesystemPathsPreservesExplicitCompatGrants(t *testing.T) {
 	doc := policy.Document{FilesystemPolicy: &policy.FilesystemPolicy{
 		IncludeWorkdirSet: true,
 		ReadOnly:          []string{"/opt/tools"},
@@ -48,14 +48,14 @@ func TestFilesystemPathsIncludesWorkdirOnlyWhenRequested(t *testing.T) {
 	}
 }
 
-func TestFilesystemPathsEmptySectionUsesOpenShellWorkdirDefault(t *testing.T) {
+func TestFilesystemPathsEmptySectionUsesCompatWorkdirDefault(t *testing.T) {
 	reads, writes := filesystemPaths(policy.Document{FilesystemPolicy: &policy.FilesystemPolicy{}}, "/workspace")
 	if len(reads) != 0 || !reflect.DeepEqual(writes, []string{"/workspace"}) {
 		t.Fatalf("empty filesystem_policy paths: reads=%v writes=%v, want default /workspace", reads, writes)
 	}
 }
 
-func TestFilesystemPathsOmittedSectionUsesOpenShellDefaults(t *testing.T) {
+func TestFilesystemPathsOmittedSectionUsesCompatDefaults(t *testing.T) {
 	reads, writes := filesystemPaths(policy.Document{}, "/workspace")
 	if len(reads) != 0 || !reflect.DeepEqual(writes, []string{"/workspace"}) {
 		t.Fatalf("omitted filesystem_policy paths: reads=%v writes=%v, want default /workspace", reads, writes)

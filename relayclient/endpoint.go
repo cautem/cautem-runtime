@@ -15,7 +15,7 @@ import (
 	"github.com/cautem/cautem-runtime/supervisorcontrol"
 )
 
-// runOpenShell speaks the pinned OpenShell ConnectSupervisor and RelayStream
+// runSupervisorGRPC speaks the Gateway supervisor and relay gRPC
 // gRPC protocol. It is selected when GatewayGRPCEndpoint is configured.
 
 func grpcTarget(endpoint string) (string, bool, error) {

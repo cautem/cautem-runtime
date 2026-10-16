@@ -22,10 +22,10 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-// runOpenShell speaks the pinned OpenShell ConnectSupervisor and RelayStream
+// runSupervisorGRPC speaks the Gateway supervisor and relay gRPC
 // gRPC protocol. It is selected when GatewayGRPCEndpoint is configured.
 
-func runOpenShell(ctx context.Context, cfg Config) error {
+func runSupervisorGRPC(ctx context.Context, cfg Config) error {
 	if err := cfg.ValidateTargetTransport(); err != nil {
 		return err
 	}
@@ -44,7 +44,7 @@ func runOpenShell(ctx context.Context, cfg Config) error {
 	}
 	conn, err := grpc.NewClient(target, grpc.WithTransportCredentials(transport))
 	if err != nil {
-		return fmt.Errorf("relayclient: OpenShell gateway connection: %w", err)
+		return fmt.Errorf("relayclient: Gateway gRPC connection: %w", err)
 	}
 	defer conn.Close()
 	client := openshellv1.NewOpenShellClient(conn)
@@ -52,7 +52,7 @@ func runOpenShell(ctx context.Context, cfg Config) error {
 	if err != nil {
 		return fmt.Errorf("relayclient: create supervisor instance id: %w", err)
 	}
-	instance := newOpenShellInstance(instanceID)
+	instance := newSupervisorInstance(instanceID)
 	token := newSupervisorToken(cfg.Token)
 	processEvents := make(chan processEventItem, 256)
 	go runProcessEventPusher(ctx, cfg, client, token, processEvents)
@@ -73,7 +73,7 @@ func runOpenShell(ctx context.Context, cfg Config) error {
 			case <-sessionCtx.Done():
 			}
 		}()
-		err = openShellSession(sessionCtx, client, cfg, instanceID, instance, token)
+		err = supervisorSession(sessionCtx, client, cfg, instanceID, instance, token)
 		sessionCancel()
 		if ctx.Err() != nil {
 			return nil
@@ -84,7 +84,7 @@ func runOpenShell(ctx context.Context, cfg Config) error {
 		if time.Since(started) > 2*relayproto.KeepaliveTimeout {
 			backoff = cfg.MinBackoff
 		}
-		cfg.Log.Warn("OpenShell supervisor session ended", slog.String("op", "supervisor.reconnect"), slog.String("sandbox", cfg.Sandbox), slog.Duration("backoff", backoff), slogx.Err(err))
+		cfg.Log.Warn("supervisor gRPC session ended", slog.String("op", "supervisor.reconnect"), slog.String("sandbox", cfg.Sandbox), slog.Duration("backoff", backoff), slogx.Err(err))
 		select {
 		case <-ctx.Done():
 			return nil
@@ -123,18 +123,18 @@ func (t *supervisorToken) set(value string) error {
 	return nil
 }
 
-// RunOpenShell starts the pinned OpenShell supervisor/relay protocol. It is
+// RunSupervisorGRPC starts the Gateway supervisor/relay gRPC protocol. It is
 // exposed for black-box integration tests and for embedders that need the
 // OpenShell transport directly.
 
-// RunOpenShell starts the pinned OpenShell supervisor/relay protocol. It is
+// RunSupervisorGRPC starts the Gateway supervisor/relay gRPC protocol. It is
 // exposed for black-box integration tests and for embedders that need the
 // OpenShell transport directly.
-func RunOpenShell(ctx context.Context, cfg Config) error {
-	return runOpenShell(ctx, cfg)
+func RunSupervisorGRPC(ctx context.Context, cfg Config) error {
+	return runSupervisorGRPC(ctx, cfg)
 }
 
-type openShellInstance struct {
+type supervisorInstance struct {
 	mu              sync.Mutex
 	value           string
 	changed         chan struct{}
@@ -142,23 +142,23 @@ type openShellInstance struct {
 	connectionEvent chan struct{}
 }
 
-func newOpenShellInstance(value string) *openShellInstance {
-	return &openShellInstance{value: value, changed: make(chan struct{}), connectionEvent: make(chan struct{})}
+func newSupervisorInstance(value string) *supervisorInstance {
+	return &supervisorInstance{value: value, changed: make(chan struct{}), connectionEvent: make(chan struct{})}
 }
 
-func (i *openShellInstance) snapshot() (string, <-chan struct{}) {
+func (i *supervisorInstance) snapshot() (string, <-chan struct{}) {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	return i.value, i.changed
 }
 
-func (i *openShellInstance) current() string {
+func (i *supervisorInstance) current() string {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	return i.value
 }
 
-func (i *openShellInstance) rotate(value string) {
+func (i *supervisorInstance) rotate(value string) {
 	i.mu.Lock()
 	old := i.changed
 	oldConnection := i.connectionEvent
@@ -171,7 +171,7 @@ func (i *openShellInstance) rotate(value string) {
 	i.mu.Unlock()
 }
 
-func (i *openShellInstance) markConnected(id string) {
+func (i *supervisorInstance) markConnected(id string) {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	if i.value != id || i.connectedID == id {
@@ -182,7 +182,7 @@ func (i *openShellInstance) markConnected(id string) {
 	i.connectionEvent = make(chan struct{})
 }
 
-func (i *openShellInstance) markDisconnected(id string) {
+func (i *supervisorInstance) markDisconnected(id string) {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	if i.connectedID != id {
@@ -193,7 +193,7 @@ func (i *openShellInstance) markDisconnected(id string) {
 	i.connectionEvent = make(chan struct{})
 }
 
-func (i *openShellInstance) waitConnected(ctx context.Context, id string) error {
+func (i *supervisorInstance) waitConnected(ctx context.Context, id string) error {
 	for {
 		i.mu.Lock()
 		if i.value != id {
@@ -214,7 +214,7 @@ func (i *openShellInstance) waitConnected(ctx context.Context, id string) error 
 	}
 }
 
-func startLifecycleControl(ctx context.Context, cfg Config, client openshellv1.OpenShellClient, instance *openShellInstance, token *supervisorToken, processEvents chan<- processEventItem) (*supervisorcontrol.Server, error) {
+func startLifecycleControl(ctx context.Context, cfg Config, client openshellv1.OpenShellClient, instance *supervisorInstance, token *supervisorToken, processEvents chan<- processEventItem) (*supervisorcontrol.Server, error) {
 	socket := strings.TrimSpace(cfg.SupervisorControlSocket)
 	address := strings.TrimSpace(cfg.SupervisorControlAddress)
 	if socket != "" && address != "" {

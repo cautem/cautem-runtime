@@ -12,10 +12,10 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-// runOpenShell speaks the pinned OpenShell ConnectSupervisor and RelayStream
+// runSupervisorGRPC speaks the Gateway supervisor and relay gRPC
 // gRPC protocol. It is selected when GatewayGRPCEndpoint is configured.
 
-func openShellRelay(ctx context.Context, client openshellv1.OpenShellClient, control *supervisorControl, cfg Config, token *supervisorToken, open *openshellv1.RelayOpen) {
+func openSupervisorRelayStream(ctx context.Context, client openshellv1.OpenShellClient, control *supervisorControl, cfg Config, token *supervisorToken, open *openshellv1.RelayOpen) {
 	channelID := open.GetChannelId()
 	target := relayproto.TargetSSH
 	if tcp := open.GetTcp(); tcp != nil {

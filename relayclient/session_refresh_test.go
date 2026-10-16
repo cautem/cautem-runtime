@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 type refreshSessionServer struct {
@@ -30,7 +31,7 @@ func (s *refreshSessionServer) ConnectSupervisor(stream openshellv1.OpenShell_Co
 	if message.GetHello() == nil {
 		return errMissingSupervisorHello
 	}
-	if err := stream.Send(&openshellv1.GatewayMessage{Payload: &openshellv1.GatewayMessage_SessionAccepted{SessionAccepted: &openshellv1.SessionAccepted{HeartbeatIntervalSecs: 60}}}); err != nil {
+	if err := stream.Send(&openshellv1.GatewayMessage{Payload: &openshellv1.GatewayMessage_SessionAccepted{SessionAccepted: &openshellv1.SessionAccepted{HeartbeatInterval: durationpb.New(60 * time.Second)}}}); err != nil {
 		return err
 	}
 	<-stream.Context().Done()
@@ -44,7 +45,7 @@ func (s *refreshSessionServer) RefreshSandboxToken(context.Context, *openshellv1
 
 var errMissingSupervisorHello = errors.New("missing supervisor hello")
 
-func TestOpenShellSessionRefreshesSupervisorToken(t *testing.T) {
+func TestCompatSessionRefreshesSupervisorToken(t *testing.T) {
 	const bufferSize = 1 << 20
 	listener := bufconn.Listen(bufferSize)
 	server := grpc.NewServer()
@@ -64,12 +65,12 @@ func TestOpenShellSessionRefreshesSupervisorToken(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	instance := newOpenShellInstance("instance-1")
+	instance := newSupervisorInstance("instance-1")
 	token := newSupervisorToken("initial-token")
 	cfg := Config{Sandbox: "sandbox-1", Log: slog.New(slog.NewTextHandler(io.Discard, nil)), TokenRefreshInterval: 20 * time.Millisecond}
 	done := make(chan error, 1)
 	go func() {
-		done <- openShellSession(ctx, client, cfg, "instance-1", instance, token)
+		done <- supervisorSession(ctx, client, cfg, "instance-1", instance, token)
 	}()
 	deadline := time.After(2 * time.Second)
 	ticker := time.NewTicker(5 * time.Millisecond)
@@ -77,7 +78,7 @@ func TestOpenShellSessionRefreshesSupervisorToken(t *testing.T) {
 	for backend.refreshes.Load() < 2 {
 		select {
 		case err := <-done:
-			t.Fatalf("openShellSession returned before refreshing the token: %v", err)
+			t.Fatalf("supervisorSession returned before refreshing the token: %v", err)
 		case <-deadline:
 			t.Fatal("timed out waiting for supervisor token refreshes")
 		case <-ticker.C:
@@ -90,6 +91,6 @@ func TestOpenShellSessionRefreshesSupervisorToken(t *testing.T) {
 	select {
 	case <-done:
 	case <-time.After(time.Second):
-		t.Fatal("openShellSession did not stop after context cancellation")
+		t.Fatal("supervisorSession did not stop after context cancellation")
 	}
 }

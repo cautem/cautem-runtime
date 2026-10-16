@@ -25,7 +25,7 @@ import (
 // Config configures Run.
 type Config struct {
 	GatewayURL string
-	// GatewayGRPCEndpoint selects the pinned OpenShell supervisor protocol.
+	// GatewayGRPCEndpoint selects the Gateway supervisor gRPC protocol.
 	// When empty, Run uses the cautem HTTP relay transport.
 	GatewayGRPCEndpoint string
 	Sandbox             string
@@ -53,7 +53,7 @@ type Config struct {
 	MinBackoff time.Duration
 	MaxBackoff time.Duration
 	// TokenRefreshInterval controls proactive RefreshSandboxToken calls for
-	// the pinned OpenShell supervisor transport. A refresh keeps an active
+	// the Gateway supervisor gRPC transport. A refresh keeps an active
 	// supervisor session usable when the gateway rotates its bearer token.
 	TokenRefreshInterval time.Duration
 	// OnConnected is called after each successful control handshake (tests).
@@ -171,7 +171,7 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	cfg.defaults()
 	if strings.TrimSpace(cfg.GatewayGRPCEndpoint) != "" {
-		return runOpenShell(ctx, cfg)
+		return runSupervisorGRPC(ctx, cfg)
 	}
 	if strings.TrimSpace(cfg.GatewayURL) == "" || strings.TrimSpace(cfg.Sandbox) == "" || strings.TrimSpace(cfg.Token) == "" {
 		return errors.New("relayclient: gateway url, sandbox and token are required")
