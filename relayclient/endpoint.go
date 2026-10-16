@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/cautem/cautem-runtime/relaytarget"
-	"github.com/cautem/cautem-runtime/supervisorcontrol"
+	"github.com/cautem/quarshell-runtime/relaytarget"
+	"github.com/cautem/quarshell-runtime/supervisorcontrol"
 )
 
 // runSupervisorGRPC speaks the Gateway supervisor and relay gRPC

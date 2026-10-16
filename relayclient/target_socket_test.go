@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/cautem/cautem-core/relayproto"
-	"github.com/cautem/cautem-runtime/relaytarget"
+	"github.com/cautem/quarshell-runtime/relaytarget"
 )
 
 func TestConfigDelegatesLoopbackDialIntoSandbox(t *testing.T) {

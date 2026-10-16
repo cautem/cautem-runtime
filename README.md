@@ -5,12 +5,12 @@
   Lifecycle helpers, harden, secrets store, cautem-init, and GHCR sandbox images.
 </p>
 <p align="center">
-  <a href="https://github.com/cautem/cautem-runtime/actions/workflows/ci.yml"><img src="https://github.com/cautem/cautem-runtime/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://pkg.go.dev/github.com/cautem/cautem-runtime"><img src="https://pkg.go.dev/badge/github.com/cautem/cautem-runtime.svg" alt="Go Reference"></a>
+  <a href="https://github.com/cautem/quarshell-runtime/actions/workflows/ci.yml"><img src="https://github.com/cautem/quarshell-runtime/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://pkg.go.dev/github.com/cautem/quarshell-runtime"><img src="https://pkg.go.dev/badge/github.com/cautem/quarshell-runtime.svg" alt="Go Reference"></a>
   <a href="https://www.apache.org/licenses/LICENSE-2.0"><img src="https://img.shields.io/badge/License-Apache--2.0-blue.svg" alt="License"></a>
-  <a href="https://github.com/cautem/cautem-runtime"><img src="https://img.shields.io/badge/Go-1.27+-00ADD8?logo=go" alt="Go Version"></a>
+  <a href="https://github.com/cautem/quarshell-runtime"><img src="https://img.shields.io/badge/Go-1.27+-00ADD8?logo=go" alt="Go Version"></a>
 
-  <a href="https://github.com/cautem/cautem-runtime/actions/workflows/images-sandbox.yml"><img src="https://github.com/cautem/cautem-runtime/actions/workflows/images-sandbox.yml/badge.svg" alt="images-sandbox"></a>
+  <a href="https://github.com/cautem/quarshell-runtime/actions/workflows/images-sandbox.yml"><img src="https://github.com/cautem/quarshell-runtime/actions/workflows/images-sandbox.yml/badge.svg" alt="images-sandbox"></a>
 </p>
 <p align="center">
   <sub>Part of the <a href="https://github.com/cautem">cautem / cautem</a> ecosystem</sub>
@@ -94,7 +94,7 @@ docker build -t cautem-sandbox:local --target cli -f images/sandbox/Dockerfile i
 | Roadmap | [ROADMAP.md](./ROADMAP.md) |
 | Organization | [https://github.com/cautem](https://github.com/cautem) |
 | Organization overview | [github.com/cautem](https://github.com/cautem) |
-| pkg.go.dev | [`github.com/cautem/cautem-runtime`](https://pkg.go.dev/github.com/cautem/cautem-runtime) |
+| pkg.go.dev | [`github.com/cautem/quarshell-runtime`](https://pkg.go.dev/github.com/cautem/quarshell-runtime) |
 
 ## License
 

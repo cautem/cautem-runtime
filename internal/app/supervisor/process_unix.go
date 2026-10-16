@@ -7,7 +7,7 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/cautem/cautem-runtime/supervisorcontrol"
+	"github.com/cautem/quarshell-runtime/supervisorcontrol"
 )
 
 func enableChildSubreaper() error { return nil }

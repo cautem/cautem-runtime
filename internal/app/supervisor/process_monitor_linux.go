@@ -14,7 +14,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/cautem/cautem-runtime/supervisorcontrol"
+	"github.com/cautem/quarshell-runtime/supervisorcontrol"
 )
 
 const processMonitorInterval = 250 * time.Millisecond

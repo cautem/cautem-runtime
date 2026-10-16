@@ -18,7 +18,7 @@ FROM ${DEBIAN_BASE} AS cli
 LABEL org.opencontainers.image.title="cautem-sandbox" \
       org.opencontainers.image.description="cautem agent sandbox (OpenShell-like toolset)" \
       org.opencontainers.image.licenses="Apache-2.0" \
-      org.opencontainers.image.source="https://github.com/cautem/cautem-runtime"
+      org.opencontainers.image.source="https://github.com/cautem/quarshell-runtime"
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1

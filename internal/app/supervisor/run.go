@@ -17,8 +17,8 @@ import (
 	"time"
 
 	"github.com/cautem/cautem-core/defaults"
-	"github.com/cautem/cautem-runtime/relaytarget"
-	"github.com/cautem/cautem-runtime/supervisorcontrol"
+	"github.com/cautem/quarshell-runtime/relaytarget"
+	"github.com/cautem/quarshell-runtime/supervisorcontrol"
 )
 
 type processEventMonitor interface {

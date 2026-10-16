@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cautem/cautem-runtime/supervisorcontrol"
+	"github.com/cautem/quarshell-runtime/supervisorcontrol"
 )
 
 func workloadArgs(args ...string) []string { return args }

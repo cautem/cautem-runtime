@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/cautem/cautem-runtime/idp"
+	"github.com/cautem/quarshell-runtime/idp"
 )
 
 func TestPrepareAndExchangeAuthorizationCode(t *testing.T) {

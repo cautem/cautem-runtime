@@ -12,8 +12,8 @@ import (
 	"syscall"
 
 	"github.com/cautem/cautem-core/policy"
-	"github.com/cautem/cautem-runtime/internal/harden"
-	"github.com/cautem/cautem-runtime/supervisorcontrol"
+	"github.com/cautem/quarshell-runtime/internal/harden"
+	"github.com/cautem/quarshell-runtime/supervisorcontrol"
 )
 
 func Run(args []string) error {
