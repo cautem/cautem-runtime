@@ -13,7 +13,7 @@ import (
 	"time"
 
 	openshellv1 "github.com/NVIDIA/OpenShell/sdk/go/proto/openshellv1"
-	"github.com/cautem/cautem-core/relayproto"
+	"github.com/cautem/quarshell-core/relayproto"
 	"github.com/cautem/quarshell-runtime/supervisorcontrol"
 	"github.com/cautem/slogx"
 	"google.golang.org/grpc"

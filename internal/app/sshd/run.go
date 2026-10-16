@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cautem/cautem-core/defaults"
+	"github.com/cautem/quarshell-core/defaults"
 	"github.com/cautem/quarshell-runtime/sshserver"
 	"golang.org/x/crypto/ssh"
 )

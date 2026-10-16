@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/cautem/cautem-core/policy"
+	"github.com/cautem/quarshell-core/policy"
 )
 
 func TestPrepareReadWritePathsCreatesMissingDirectoryOnWindows(t *testing.T) {

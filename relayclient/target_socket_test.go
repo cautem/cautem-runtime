@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cautem/cautem-core/relayproto"
+	"github.com/cautem/quarshell-core/relayproto"
 	"github.com/cautem/quarshell-runtime/relaytarget"
 )
 

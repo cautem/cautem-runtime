@@ -11,7 +11,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/cautem/cautem-core/policy"
+	"github.com/cautem/quarshell-core/policy"
 	"github.com/cautem/quarshell-runtime/internal/harden"
 	"github.com/cautem/quarshell-runtime/supervisorcontrol"
 )

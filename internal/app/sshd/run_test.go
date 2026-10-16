@@ -3,7 +3,7 @@ package sshd
 import (
 	"testing"
 
-	"github.com/cautem/cautem-core/defaults"
+	"github.com/cautem/quarshell-core/defaults"
 )
 
 func TestParseArgsAllowsTrustedInitOverride(t *testing.T) {
