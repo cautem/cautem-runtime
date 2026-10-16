@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [v0.3.1] - 2026-10-16
+
+### Changed
+
+- Publish the module under `github.com/cautem/quarshell-runtime`; earlier tags keep their original module path.
+- Pin `quarshell-core` to v0.3.1 and `quarshell-slogx` to v0.1.4.
+
 ## [v0.3.0] - 2026-10-16
 
 ### Added

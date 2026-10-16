@@ -1,11 +1,11 @@
 github.com/NVIDIA/OpenShell/sdk/go v0.0.0-20261013191600-5a7728c304b5 h1:kaCv8vel/347r5p/R0RWU1G3gFWYHHEaJwG03WGlUs8=
 github.com/NVIDIA/OpenShell/sdk/go v0.0.0-20261013191600-5a7728c304b5/go.mod h1:+wnjuZwBJH2yz8cU1t7FiGK7xPQyxjOY3YZNFcfpL90=
-github.com/cautem/quarshell-core v0.3.1-0.20261016151917-f75458088399 h1:7hLtvAhVJlqi7OfFzK1hB+mBGiKHu40uRaRmCcsPXV8=
-github.com/cautem/quarshell-core v0.3.1-0.20261016151917-f75458088399/go.mod h1:x8e1r0yrVHORbj9Ku+Lk6y2DsOJ8yy2rF054ds15Ols=
-github.com/cautem/quarshell-driver v0.3.1-0.20261016180809-ff63d197d183 h1:40hRhLB/+zOefllLPc5EyN3OhkeL4jKzRxNEYc6DdNA=
-github.com/cautem/quarshell-driver v0.3.1-0.20261016180809-ff63d197d183/go.mod h1:xhHwedNoEdpb57mx4Tf1DtkONgIFzqN7o/Mqqq9YwMg=
-github.com/cautem/quarshell-slogx v0.1.4-0.20261016153436-5ec8e199a72f h1:d4yR7Ty2cabEoLsRwDkKEachnWDDPa7ONKgKqqsGXjk=
-github.com/cautem/quarshell-slogx v0.1.4-0.20261016153436-5ec8e199a72f/go.mod h1:YsYiAQjggwUes+6pygjgNJP5zRLohd5PQZLMJjiNiAA=
+github.com/cautem/quarshell-core v0.3.1 h1:65JXlKKJDJwSC7llrULL0lux4q/f45o0PSrAhVdO3nI=
+github.com/cautem/quarshell-core v0.3.1/go.mod h1:x8e1r0yrVHORbj9Ku+Lk6y2DsOJ8yy2rF054ds15Ols=
+github.com/cautem/quarshell-driver v0.3.1 h1:7MGYG+9YT6dXqVN6Euz2FYQ0e3uaFu8OPMmEtRY72Ds=
+github.com/cautem/quarshell-driver v0.3.1/go.mod h1:Bti8GuucrRaJykJi9aaz88iE7q5HGuqNQMe+9qMR5Uk=
+github.com/cautem/quarshell-slogx v0.1.4 h1:ARXVlesuHVTd7/y/xLh2gSSwkXVQ90YwhXgFCyz2AwY=
+github.com/cautem/quarshell-slogx v0.1.4/go.mod h1:YsYiAQjggwUes+6pygjgNJP5zRLohd5PQZLMJjiNiAA=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
 github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
