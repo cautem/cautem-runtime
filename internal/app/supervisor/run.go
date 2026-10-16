@@ -16,7 +16,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cautem/cautem-core/defaults"
+	"github.com/cautem/quarshell-core/defaults"
 	"github.com/cautem/quarshell-runtime/relaytarget"
 	"github.com/cautem/quarshell-runtime/supervisorcontrol"
 )

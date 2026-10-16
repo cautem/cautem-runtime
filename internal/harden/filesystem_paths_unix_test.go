@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/cautem/cautem-core/policy"
+	"github.com/cautem/quarshell-core/policy"
 )
 
 func TestPrepareReadWritePathsCreatesAndOwnsMissingDirectory(t *testing.T) {

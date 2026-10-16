@@ -6,8 +6,8 @@ toolchain go1.27.2
 
 require (
 	github.com/NVIDIA/OpenShell/sdk/go v0.0.0-20261013191600-5a7728c304b5
-	github.com/cautem/cautem-core v0.3.0
-	github.com/cautem/cautem-driver v0.2.1
+	github.com/cautem/quarshell-core v0.3.1-0.20261016151917-f75458088399
+	github.com/cautem/quarshell-driver v0.3.1-0.20261016180809-ff63d197d183
 	github.com/cautem/slogx v0.1.3
 	github.com/landlock-lsm/go-landlock v0.10.1
 	golang.org/x/crypto v0.58.0

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cautem/cautem-core/relayproto"
+	"github.com/cautem/quarshell-core/relayproto"
 )
 
 // ValidateTargetTransport checks mutually exclusive target relay settings and

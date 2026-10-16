@@ -4,7 +4,7 @@ package harden
 
 import "errors"
 
-import "github.com/cautem/cautem-core/policy"
+import "github.com/cautem/quarshell-core/policy"
 
 var errPrivilegeDropUnavailable = errors.New("privilege drop only available on linux")
 

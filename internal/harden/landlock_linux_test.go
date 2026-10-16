@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cautem/cautem-core/policy"
+	"github.com/cautem/quarshell-core/policy"
 )
 
 func TestLandlockDefaultRuntimeBaseline(t *testing.T) {

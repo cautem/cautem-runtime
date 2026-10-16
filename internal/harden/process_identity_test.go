@@ -3,7 +3,7 @@ package harden
 import (
 	"testing"
 
-	"github.com/cautem/cautem-core/policy"
+	"github.com/cautem/quarshell-core/policy"
 )
 
 func TestProcessIdentityFailureIsNeverBestEffort(t *testing.T) {

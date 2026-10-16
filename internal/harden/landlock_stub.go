@@ -5,7 +5,7 @@ package harden
 import (
 	"errors"
 
-	"github.com/cautem/cautem-core/policy"
+	"github.com/cautem/quarshell-core/policy"
 )
 
 var errLandlockUnavailable = errors.New("landlock only available on linux")
